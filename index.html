@@ -102,6 +102,7 @@ html, body {
   margin-bottom: 6px;
   user-select: text;
   -webkit-user-select: text;
+  position: relative;
 }
 
 .row.me {
@@ -125,6 +126,8 @@ html, body {
   box-shadow: 0 1px 1px rgba(0, 0, 0, 0.1);
   color: #222;
   background-clip: padding-box;
+  padding-bottom: 20px; /* beri ruang untuk timestamp */
+  position: relative;
 }
 
 /* Sent messages */
@@ -159,6 +162,19 @@ html, body {
   -webkit-user-select: none;
 }
 
+/* ===== TIMESTAMP ===== */
+.timestamp {
+  position: absolute;
+  bottom: 4px;
+  right: 8px;
+  font-size: 11px;
+  color: rgba(0, 0, 0, 0.45);
+  user-select: none;
+  -webkit-user-select: none;
+  font-weight: 500;
+  font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+}
+
 /* ===== SYSTEM MESSAGES ===== */
 .system {
   text-align: center;
@@ -167,6 +183,18 @@ html, body {
   margin: 8px 0;
   user-select: none;
   -webkit-user-select: none;
+}
+
+.system.highlight {
+  background-color: #fffae6; /* warna kuning lembut */
+  color: #665500; /* teks warna coklat tua */
+  border: 1px solid #ffec99;
+  border-radius: 8px;
+  padding: 8px 12px;
+  font-weight: 600;
+  box-shadow: 0 0 8px rgba(255, 235, 59, 0.5);
+  margin: 10px auto;
+  max-width: 80%;
 }
 
 /* ===== INPUT BAR ===== */
@@ -230,18 +258,6 @@ html, body {
     font-size: 17px;
   }
 }
-.system.highlight {
-  background-color: #fffae6; /* warna kuning lembut */
-  color: #665500; /* teks warna coklat tua */
-  border: 1px solid #ffec99;
-  border-radius: 8px;
-  padding: 8px 12px;
-  font-weight: 600;
-  box-shadow: 0 0 8px rgba(255, 235, 59, 0.5);
-  margin: 10px auto;
-  max-width: 80%;
-}
-
 </style>
 </head>
 
@@ -281,14 +297,6 @@ const msgInput = document.getElementById("msg");
 const sendBtn = document.getElementById("sendBtn");
 
 /* ===== SYSTEM MESSAGE ===== */
-/*function systemMsg(text) {
-  const d = document.createElement("div");
-  d.className = "system";
-  d.textContent = text;
-  chat.appendChild(d);
-  chat.scrollTop = chat.scrollHeight;
-}*/
-
 function systemMsg(text, highlight = false) {
   const d = document.createElement("div");
   d.className = "system";
@@ -297,7 +305,6 @@ function systemMsg(text, highlight = false) {
   chat.appendChild(d);
   chat.scrollTop = chat.scrollHeight;
 }
-
 
 /* ===== NOTIF JOIN & LEAVE ala WhatsApp GROUP ===== */
 function peerJoined(pid) {
@@ -314,6 +321,11 @@ function peerLeft(pid) {
   } else {
     systemMsg(`👤 ${pid} keluar`);
   }
+}
+
+/* ===== GET CURRENT TIME ===== */
+function getCurrentTime() {
+  return new Date().toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'});
 }
 
 /* ===== TAMBAH PESAN ===== */
@@ -338,9 +350,28 @@ function addMsg(text, type, from = "") {
 
     bubble.appendChild(name);
     bubble.appendChild(document.createTextNode(text));
+
+    // Timestamp
+    const timestamp = document.createElement("div");
+    timestamp.className = "timestamp";
+    timestamp.textContent = getCurrentTime();
+    bubble.appendChild(timestamp);
+
+    row.appendChild(bubble);
+  } else if(type === "me") {
+    const bubble = document.createElement("div");
+    bubble.className = "bubble";
+    bubble.appendChild(document.createTextNode(text));
+
+    // Timestamp
+    const timestamp = document.createElement("div");
+    timestamp.className = "timestamp";
+    timestamp.textContent = getCurrentTime();
+    bubble.appendChild(timestamp);
+
     row.appendChild(bubble);
   } else {
-    // untuk "me" atau "system"
+    // system message
     const bubble = document.createElement("div");
     bubble.className = "bubble";
     bubble.appendChild(document.createTextNode(text));
@@ -383,9 +414,7 @@ const WS_URL = location.protocol === "https:"
 const ws = new WebSocket(WS_URL);
 const peers = {};
 
-//systemMsg(" Jangan menunggu hari yang sempurna untuk berbuat baik, karena kebaikanlah yang akan menyempurnakan harimu.");
 systemMsg("Jangan menunggu hari yang sempurna untuk berbuat baik, karena kebaikanlah yang akan menyempurnakan harimu.", true);
-
 
 ws.onopen = () => {
   systemMsg("Selamat datang (" + myId + ")");
@@ -410,8 +439,6 @@ ws.onmessage = e => {
 
 /* ===== PEER ===== */
 function createPeer(pid) {
-  //systemMsg("... " + pid);
-
   const peer = new SimplePeer({
     initiator: myId < pid,
     trickle: false
