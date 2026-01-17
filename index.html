@@ -2,7 +2,7 @@
 <html lang="id">
 <head>
 <meta charset="UTF-8">
-<title>P2P Chat</title>
+<title>Obrolan Kita</title>
 
 <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1">
 
@@ -110,6 +110,7 @@ html, body {
 
 .row.peer {
   justify-content: flex-start;
+  align-items: flex-end; /* biar avatar dan bubble bawahnya sejajar */
 }
 
 /* ===== CHAT BUBBLES ===== */
@@ -136,6 +137,17 @@ html, body {
 .peer .bubble {
   background: rgba(255, 255, 255, 0.9);
   border-bottom-left-radius: 2px;
+}
+
+/* ===== AVATAR ===== */
+.avatar {
+  width: 32px;
+  height: 32px;
+  border-radius: 50%;
+  margin-right: 8px;
+  flex-shrink: 0;
+  user-select: none;
+  -webkit-user-select: none;
 }
 
 /* ===== SENDER NAME ===== */
@@ -218,6 +230,17 @@ html, body {
     font-size: 17px;
   }
 }
+.system.highlight {
+  background-color: #fffae6; /* warna kuning lembut */
+  color: #665500; /* teks warna coklat tua */
+  border: 1px solid #ffec99;
+  border-radius: 8px;
+  padding: 8px 12px;
+  font-weight: 600;
+  box-shadow: 0 0 8px rgba(255, 235, 59, 0.5);
+  margin: 10px auto;
+  max-width: 80%;
+}
 
 </style>
 </head>
@@ -225,12 +248,12 @@ html, body {
 <body>
 
 <div class="app">
-  <div class="header">💬 P2P Chat</div>
+  <div class="header">CEO yang hilang</div>
 
   <div id="chat"></div>
 
   <div class="input-bar">
-    <input id="msg" placeholder="Tulis pesan..." disabled>
+    <input id="msg" placeholder="Tuliskan keluh kesahmu..." disabled>
     <button id="sendBtn" disabled>➤</button>
   </div>
 </div>
@@ -238,41 +261,117 @@ html, body {
 <script src="https://cdn.jsdelivr.net/npm/simple-peer@9/simplepeer.min.js"></script>
 
 <script>
-/* ===== ID ===== */
-const myId = "user" + Math.floor(Math.random() * 10000);
+/* ===== NAMA UNIK ===== */
+const names = [
+  "KucingHijau", "MawarPutih", "GajahBesar", "SiLincah",
+  "BurungMerdeka", "HarimauJawa", "BebekCeria", "KupuCantik"
+];
+
+function generateRandomName() {
+  const name = names[Math.floor(Math.random() * names.length)];
+  const number = Math.floor(Math.random() * 1000);
+  return `${name}${number}`;
+}
+
+const myId = generateRandomName();
 
 /* ===== ELEMENT ===== */
 const chat = document.getElementById("chat");
 const msgInput = document.getElementById("msg");
 const sendBtn = document.getElementById("sendBtn");
 
-/* ===== UI ===== */
-function systemMsg(text) {
+/* ===== SYSTEM MESSAGE ===== */
+/*function systemMsg(text) {
   const d = document.createElement("div");
   d.className = "system";
   d.textContent = text;
   chat.appendChild(d);
   chat.scrollTop = chat.scrollHeight;
+}*/
+
+function systemMsg(text, highlight = false) {
+  const d = document.createElement("div");
+  d.className = "system";
+  if (highlight) d.classList.add("highlight");
+  d.textContent = text;
+  chat.appendChild(d);
+  chat.scrollTop = chat.scrollHeight;
 }
 
+
+/* ===== NOTIF JOIN & LEAVE ala WhatsApp GROUP ===== */
+function peerJoined(pid) {
+  if (pid === myId) {
+    systemMsg(`✅ Kamu bergabung`);
+  } else {
+    systemMsg(`👤 ${pid} bergabung`);
+  }
+}
+
+function peerLeft(pid) {
+  if (pid === myId) {
+    systemMsg(`⚠️ Kamu keluar dari grup`);
+  } else {
+    systemMsg(`👤 ${pid} keluar`);
+  }
+}
+
+/* ===== TAMBAH PESAN ===== */
 function addMsg(text, type, from = "") {
   const row = document.createElement("div");
   row.className = "row " + type;
 
-  const bubble = document.createElement("div");
-  bubble.className = "bubble";
-
   if (type === "peer") {
+    const avatar = document.createElement("img");
+    avatar.className = "avatar";
+    avatar.alt = from;
+    avatar.src = `https://api.dicebear.com/6.x/bottts/svg?seed=${encodeURIComponent(from)}&scale=90`;
+    row.appendChild(avatar);
+
+    const bubble = document.createElement("div");
+    bubble.className = "bubble";
+
     const name = document.createElement("div");
     name.className = "name";
     name.textContent = from;
+    name.style.color = getColorForUser(from);
+
     bubble.appendChild(name);
+    bubble.appendChild(document.createTextNode(text));
+    row.appendChild(bubble);
+  } else {
+    // untuk "me" atau "system"
+    const bubble = document.createElement("div");
+    bubble.className = "bubble";
+    bubble.appendChild(document.createTextNode(text));
+    row.appendChild(bubble);
   }
 
-  bubble.appendChild(document.createTextNode(text));
-  row.appendChild(bubble);
   chat.appendChild(row);
   chat.scrollTop = chat.scrollHeight;
+}
+
+/* ===== COLOR PALETTE seperti WhatsApp (6 warna) ===== */
+const userColors = [
+  "#25D366", // hijau WhatsApp
+  "#34B7F1", // biru
+  "#9C27B0", // ungu
+  "#FF9800", // oranye
+  "#F44336", // merah
+  "#777777"  // abu-abu gelap
+];
+
+function getColorForUser(username) {
+  const index = Math.abs(hashCode(username)) % userColors.length;
+  return userColors[index];
+}
+
+function hashCode(str) {
+  let hash = 0;
+  for(let i=0; i<str.length; i++) {
+    hash = str.charCodeAt(i) + ((hash << 5) - hash);
+  }
+  return hash;
 }
 
 /* ===== SIGNALING ===== */
@@ -284,10 +383,12 @@ const WS_URL = location.protocol === "https:"
 const ws = new WebSocket(WS_URL);
 const peers = {};
 
-systemMsg("🔌 Menghubungkan...");
+//systemMsg(" Jangan menunggu hari yang sempurna untuk berbuat baik, karena kebaikanlah yang akan menyempurnakan harimu.");
+systemMsg("Jangan menunggu hari yang sempurna untuk berbuat baik, karena kebaikanlah yang akan menyempurnakan harimu.", true);
+
 
 ws.onopen = () => {
-  systemMsg("✅ Terhubung (" + myId + ")");
+  systemMsg("Selamat datang (" + myId + ")");
   ws.send(JSON.stringify({ type: "register", id: myId }));
 };
 
@@ -309,7 +410,7 @@ ws.onmessage = e => {
 
 /* ===== PEER ===== */
 function createPeer(pid) {
-  systemMsg("⏳ Menghubungkan ke " + pid);
+  //systemMsg("... " + pid);
 
   const peer = new SimplePeer({
     initiator: myId < pid,
@@ -323,7 +424,7 @@ function createPeer(pid) {
   });
 
   peer.on("connect", () => {
-    systemMsg("✅ Terhubung dengan " + pid);
+    peerJoined(pid);
     updateUI();
   });
 
@@ -332,7 +433,7 @@ function createPeer(pid) {
   });
 
   peer.on("close", () => {
-    systemMsg("⚠️ Terputus dari " + pid);
+    peerLeft(pid);
     delete peers[pid];
     updateUI();
   });
