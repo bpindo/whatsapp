@@ -3,6 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <title>P2P Chat</title>
+
 <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1">
 
 <!-- PWA -->
@@ -12,17 +13,33 @@
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
 
 <style>
-/* ===== RESET & BASE ===== */
-* { box-sizing: border-box; }
+/* ===== RESET ===== */
+* {
+  box-sizing: border-box;
+  -webkit-tap-highlight-color: transparent;
+}
+
+/* ===== WHATSAPP SYSTEM FONT ===== */
 html, body {
   margin: 0;
   height: 100%;
-  overscroll-behavior: none;
-  font-family: system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
   background: #ece5dd;
+
+  /* FONT PERSIS WHATSAPP */
+  font-family:
+    system-ui,
+    -apple-system,
+    BlinkMacSystemFont,
+    "Segoe UI",
+    Roboto,
+    Helvetica,
+    Arial,
+    sans-serif;
+
+  overscroll-behavior: none;
 }
 
-/* ===== APP LAYOUT ===== */
+/* ===== APP CONTAINER ===== */
 .app {
   display: flex;
   flex-direction: column;
@@ -37,6 +54,7 @@ html, body {
   background: #075E54;
   color: #fff;
   padding: 12px;
+  font-size: 16px;
   font-weight: 600;
   text-align: center;
 }
@@ -49,45 +67,51 @@ html, body {
   -webkit-overflow-scrolling: touch;
 }
 
-/* ===== BUBBLES ===== */
+/* ===== MESSAGE ROW ===== */
 .row {
   display: flex;
   margin-bottom: 6px;
 }
 
-.me {
+.row.me {
   justify-content: flex-end;
 }
 
-.peer {
+.row.peer {
   justify-content: flex-start;
 }
 
+/* ===== BUBBLE ===== */
 .bubble {
   max-width: 78%;
   padding: 8px 10px;
   border-radius: 8px;
-  font-size: 14px;
-  line-height: 1.4;
+  font-size: 16px;     /* WA FONT SIZE */
+  line-height: 1.45;   /* WA LINE HEIGHT */
   word-wrap: break-word;
+  white-space: pre-wrap;
 }
 
+/* ===== ME ===== */
 .me .bubble {
   background: #dcf8c6;
   border-bottom-right-radius: 2px;
 }
 
+/* ===== PEER ===== */
 .peer .bubble {
   background: #fff;
   border-bottom-left-radius: 2px;
 }
 
+/* ===== NAME ===== */
 .name {
-  font-size: 11px;
+  font-size: 12px;
   color: #666;
   margin-bottom: 2px;
 }
 
+/* ===== SYSTEM ===== */
 .system {
   text-align: center;
   font-size: 12px;
@@ -104,15 +128,20 @@ html, body {
   bottom: 0;
 }
 
+/* ===== INPUT ===== */
 #msg {
   flex: 1;
   border: none;
   border-radius: 20px;
   padding: 10px 14px;
-  font-size: 14px;
+
+  font-size: 16px; /* PENTING: min 16px agar tidak zoom */
+  line-height: 1.4;
+
   outline: none;
 }
 
+/* ===== SEND BUTTON ===== */
 #sendBtn {
   margin-left: 8px;
   background: #075E54;
@@ -127,6 +156,17 @@ html, body {
 
 #sendBtn:disabled {
   background: #9bb7b2;
+}
+
+/* ===== MOBILE TUNING ===== */
+@media (max-width: 480px) {
+  .bubble {
+    font-size: 16.5px;
+  }
+
+  #msg {
+    font-size: 17px;
+  }
 }
 </style>
 </head>
@@ -150,13 +190,13 @@ html, body {
 /* ===== ID ===== */
 const myId = "user" + Math.floor(Math.random() * 10000);
 
-/* ===== ELEMENTS ===== */
+/* ===== ELEMENT ===== */
 const chat = document.getElementById("chat");
 const msgInput = document.getElementById("msg");
 const sendBtn = document.getElementById("sendBtn");
 
 /* ===== UI ===== */
-function addSystem(text) {
+function systemMsg(text) {
   const d = document.createElement("div");
   d.className = "system";
   d.textContent = text;
@@ -164,7 +204,7 @@ function addSystem(text) {
   chat.scrollTop = chat.scrollHeight;
 }
 
-function addMessage(text, type, from = "") {
+function addMsg(text, type, from = "") {
   const row = document.createElement("div");
   row.className = "row " + type;
 
@@ -186,15 +226,17 @@ function addMessage(text, type, from = "") {
 
 /* ===== SIGNALING ===== */
 const SIGNALING_HOST = "p2p-chat-production-3693.up.railway.app";
-const WS_URL = location.protocol === "https:" ? "wss://" + SIGNALING_HOST : "ws://" + SIGNALING_HOST;
+const WS_URL = location.protocol === "https:"
+  ? "wss://" + SIGNALING_HOST
+  : "ws://" + SIGNALING_HOST;
 
 const ws = new WebSocket(WS_URL);
 const peers = {};
 
-addSystem("🔌 Menghubungkan...");
+systemMsg("🔌 Menghubungkan...");
 
 ws.onopen = () => {
-  addSystem("✅ Signaling terhubung (" + myId + ")");
+  systemMsg("✅ Terhubung (" + myId + ")");
   ws.send(JSON.stringify({ type: "register", id: myId }));
 };
 
@@ -216,7 +258,7 @@ ws.onmessage = e => {
 
 /* ===== PEER ===== */
 function createPeer(pid) {
-  addSystem("⏳ Menghubungkan ke " + pid);
+  systemMsg("⏳ Menghubungkan ke " + pid);
 
   const peer = new SimplePeer({
     initiator: myId < pid,
@@ -230,39 +272,39 @@ function createPeer(pid) {
   });
 
   peer.on("connect", () => {
-    addSystem("✅ Terhubung dengan " + pid);
+    systemMsg("✅ Terhubung dengan " + pid);
     updateUI();
   });
 
   peer.on("data", d => {
-    addMessage(d.toString(), "peer", pid);
+    addMsg(d.toString(), "peer", pid);
   });
 
   peer.on("close", () => {
-    addSystem("⚠️ Terputus dari " + pid);
+    systemMsg("⚠️ Terputus dari " + pid);
     delete peers[pid];
     updateUI();
   });
 }
 
 /* ===== SEND ===== */
-sendBtn.onclick = sendMessage;
-
 function sendMessage() {
   const text = msgInput.value.trim();
   if (!text) return;
 
-  let sent = false;
+  let ok = false;
   Object.values(peers).forEach(p => {
     if (p.connected) {
       p.send(text);
-      sent = true;
+      ok = true;
     }
   });
 
-  if (sent) addMessage(text, "me");
+  if (ok) addMsg(text, "me");
   msgInput.value = "";
 }
+
+sendBtn.onclick = sendMessage;
 
 /* ENTER = SEND */
 msgInput.addEventListener("keydown", e => {
@@ -272,14 +314,14 @@ msgInput.addEventListener("keydown", e => {
   }
 });
 
-/* ===== UI ENABLE ===== */
+/* ===== UI ===== */
 function updateUI() {
   const ready = Object.values(peers).some(p => p.connected);
   msgInput.disabled = !ready;
   sendBtn.disabled = !ready;
 }
 
-/* ===== SERVICE WORKER ===== */
+/* ===== PWA ===== */
 if ("serviceWorker" in navigator) {
   navigator.serviceWorker.register("service-worker.js");
 }
