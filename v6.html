@@ -14,249 +14,72 @@
 
 <style>
 /* ===== RESET ===== */
-* {
-  box-sizing: border-box;
-  -webkit-tap-highlight-color: transparent;
-  margin: 0;
-  padding: 0;
+*{box-sizing:border-box;margin:0;padding:0;-webkit-tap-highlight-color:transparent;}
+html,body{
+  height:100%;
+  background:#ece5dd;
+  font-family:system-ui,-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Helvetica,Arial,sans-serif;
 }
-
-/* ===== FONT & BODY ===== */
-html, body {
-  height: 100%;
-  background: #ece5dd;
-  font-family:
-    system-ui,
-    -apple-system,
-    BlinkMacSystemFont,
-    "Segoe UI",
-    Roboto,
-    Helvetica,
-    Arial,
-    sans-serif;
-  overscroll-behavior: none;
-  -webkit-font-smoothing: antialiased;
-  -moz-osx-font-smoothing: grayscale;
+.app{
+  display:flex;
+  flex-direction:column;
+  height:100vh;
+  max-width:480px;
+  margin:0 auto;
+  background:#ece5dd;
 }
-
-/* ===== APP CONTAINER ===== */
-.app {
-  display: flex;
-  flex-direction: column;
-  height: 100vh;
-  max-width: 480px;
-  margin: 0 auto;
-  background: #ece5dd;
-  box-shadow: 0 0 12px rgba(0,0,0,0.05);
+.header{
+  background:#075e54;
+  color:#fff;
+  padding:12px;
+  text-align:center;
+  font-weight:600;
 }
-
-/* ===== HEADER ===== */
-.header {
-  background-color: #075e54;
-  color: #fff;
-  padding: 12px 16px;
-  font-size: 16px;
-  font-weight: 600;
-  text-align: center;
-  user-select: none;
-  box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+#chat{
+  flex:1;
+  overflow-y:auto;
+  padding:10px;
+  background:#ece5dd;
 }
-
-/* ===== CHAT AREA ===== */
-#chat {
-  position: relative;
-  flex: 1;
-  overflow-y: auto;
-  padding: 10px 12px;
-  -webkit-overflow-scrolling: touch;
-
-  /* subtle dot pattern */
-  background-color: #ece5dd;
-  background-image:
-    radial-gradient(circle 3px rgba(7, 94, 84, 0.07) 95%, transparent 96%),
-    radial-gradient(circle 3px rgba(37, 211, 102, 0.07) 95%, transparent 96%);
-  background-position: 0 0, 20px 20px;
-  background-size: 40px 40px;
-  background-repeat: repeat;
+.row{display:flex;margin-bottom:6px;}
+.row.me{justify-content:flex-end;}
+.bubble{
+  max-width:78%;
+  padding:8px 14px 20px;
+  border-radius:8px;
+  font-size:16px;
+  background:#fff;
+  position:relative;
 }
-
-/* overlay to soften pattern */
-#chat::before {
-  content: "";
-  position: absolute;
-  inset: 0;
-  background: rgba(255, 255, 255, 0.65);
-  pointer-events: none;
-  z-index: 1;
+.me .bubble{background:#dcf8c6;}
+.name{font-size:12px;margin-bottom:2px;}
+.timestamp{
+  position:absolute;
+  bottom:4px;
+  right:8px;
+  font-size:11px;
+  opacity:.5;
 }
-
-/* chat messages container */
-#chat > * {
-  position: relative;
-  z-index: 2;
+.system{text-align:center;font-size:12px;color:#666;margin:8px 0;}
+.input-bar{
+  display:flex;
+  padding:8px;
+  background:#f0f0f0;
 }
-
-/* ===== MESSAGE ROW ===== */
-.row {
-  display: flex;
-  margin-bottom: 6px;
-  user-select: text;
-  -webkit-user-select: text;
-  position: relative;
+#msg{
+  flex:1;
+  border:none;
+  border-radius:20px;
+  padding:10px 16px;
 }
-
-.row.me {
-  justify-content: flex-end;
-}
-
-.row.peer {
-  justify-content: flex-start;
-  align-items: flex-end; /* biar avatar dan bubble bawahnya sejajar */
-}
-
-/* ===== CHAT BUBBLES ===== */
-.bubble {
-  max-width: 78%;
-  padding: 8px 14px;
-  border-radius: 8px;
-  font-size: 16px;
-  line-height: 1.45;
-  word-wrap: break-word;
-  white-space: pre-wrap;
-  box-shadow: 0 1px 1px rgba(0, 0, 0, 0.1);
-  color: #222;
-  background-clip: padding-box;
-  padding-bottom: 20px; /* beri ruang untuk timestamp */
-  position: relative;
-}
-
-/* Sent messages */
-.me .bubble {
-  background: rgba(220, 248, 198, 0.9);
-  border-bottom-right-radius: 2px;
-}
-
-/* Received messages */
-.peer .bubble {
-  background: rgba(255, 255, 255, 0.9);
-  border-bottom-left-radius: 2px;
-}
-
-/* ===== AVATAR ===== */
-.avatar {
-  width: 32px;
-  height: 32px;
-  border-radius: 50%;
-  margin-right: 8px;
-  flex-shrink: 0;
-  user-select: none;
-  -webkit-user-select: none;
-}
-
-/* ===== SENDER NAME ===== */
-.name {
-  font-size: 12px;
-  color: #666;
-  margin-bottom: 2px;
-  user-select: none;
-  -webkit-user-select: none;
-}
-
-/* ===== TIMESTAMP ===== */
-.timestamp {
-  position: absolute;
-  bottom: 4px;
-  right: 8px;
-  font-size: 11px;
-  color: rgba(0, 0, 0, 0.45);
-  user-select: none;
-  -webkit-user-select: none;
-  font-weight: 500;
-  font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
-}
-
-/* ===== SYSTEM MESSAGES ===== */
-.system {
-  text-align: center;
-  font-size: 12px;
-  color: #666;
-  margin: 8px 0;
-  user-select: none;
-  -webkit-user-select: none;
-}
-
-.system.highlight {
-  background-color: #fffae6; /* warna kuning lembut */
-  color: #665500; /* teks warna coklat tua */
-  border: 1px solid #ffec99;
-  border-radius: 8px;
-  padding: 8px 12px;
-  font-weight: 600;
-  box-shadow: 0 0 8px rgba(255, 235, 59, 0.5);
-  margin: 10px auto;
-  max-width: 80%;
-}
-
-/* ===== INPUT BAR ===== */
-.input-bar {
-  display: flex;
-  padding: 8px 12px;
-  background: #f0f0f0;
-  position: sticky;
-  bottom: 0;
-  box-shadow: 0 -1px 6px rgba(0,0,0,0.07);
-  z-index: 10;
-}
-
-/* ===== INPUT FIELD ===== */
-#msg {
-  flex: 1;
-  border: none;
-  border-radius: 20px;
-  padding: 10px 16px;
-  font-size: 16px;
-  line-height: 1.4;
-  outline: none;
-  background: #fff;
-  box-shadow: inset 0 1px 3px rgba(0,0,0,0.1);
-  -webkit-font-smoothing: antialiased;
-}
-
-/* ===== SEND BUTTON ===== */
-#sendBtn {
-  margin-left: 8px;
-  background: #075e54;
-  color: #fff;
-  border: none;
-  border-radius: 50%;
-  width: 42px;
-  height: 42px;
-  font-size: 20px;
-  cursor: pointer;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  user-select: none;
-  transition: background-color 0.3s ease;
-}
-
-#sendBtn:hover:not(:disabled) {
-  background: #0a6b4b;
-}
-
-#sendBtn:disabled {
-  background: #9bb7b2;
-  cursor: default;
-}
-
-/* ===== MOBILE TUNING ===== */
-@media (max-width: 480px) {
-  .bubble {
-    font-size: 16.5px;
-  }
-  #msg {
-    font-size: 17px;
-  }
+#sendBtn{
+  margin-left:8px;
+  width:42px;
+  height:42px;
+  border-radius:50%;
+  border:none;
+  background:#075e54;
+  color:#fff;
 }
 </style>
 </head>
@@ -265,200 +88,140 @@ html, body {
 
 <div class="app">
   <div class="header">CEO yang hilang</div>
-
   <div id="chat"></div>
 
   <div class="input-bar">
-  <button id="addFileBtn">➕</button>
-  <input type="file" id="fileInput" hidden>
-  <input id="msg" placeholder="Tuliskan keluh kesahmu..." disabled>
-  <button id="sendBtn" disabled>➤</button>
+    <button id="addFileBtn">➕</button>
+    <input type="file" id="fileInput" hidden>
+    <input id="msg" placeholder="Tuliskan keluh kesahmu..." disabled>
+    <button id="sendBtn" disabled>➤</button>
+  </div>
 </div>
 
-</div>
-
+<!-- LIB -->
 <script src="https://cdn.jsdelivr.net/npm/simple-peer@9/simplepeer.min.js"></script>
 
+<!-- FIX 1: WAJIB load WebTorrent -->
+<script src="https://cdn.jsdelivr.net/npm/webtorrent@0.115.0/webtorrent.min.js"></script>
+
 <script>
-/* ===== NAMA UNIK ===== */
-const names = [
-  "KucingHijau", "MawarPutih", "GajahBesar", "SiLincah",
-  "BurungMerdeka", "HarimauJawa", "BebekCeria", "KupuCantik"
-];
+/* ===== ID ===== */
+const names=["KucingHijau","MawarPutih","GajahBesar","SiLincah","BurungMerdeka","HarimauJawa","BebekCeria","KupuCantik"];
+const myId=names[Math.floor(Math.random()*names.length)]+Math.floor(Math.random()*1000);
 
-function generateRandomName() {
-  const name = names[Math.floor(Math.random() * names.length)];
-  const number = Math.floor(Math.random() * 1000);
-  return `${name}${number}`;
-}
+/* ===== UI ===== */
+const chat=document.getElementById("chat");
+const msg=document.getElementById("msg");
+const sendBtn=document.getElementById("sendBtn");
 
-const myId = generateRandomName();
-
-/* ===== ELEMENT ===== */
-const chat = document.getElementById("chat");
-const msgInput = document.getElementById("msg");
-const sendBtn = document.getElementById("sendBtn");
-
-/* ===== SYSTEM MESSAGE ===== */
-function systemMsg(text, highlight = false) {
-  const d = document.createElement("div");
-  d.className = "system";
-  if (highlight) d.classList.add("highlight");
-  d.textContent = text;
+function systemMsg(t){
+  const d=document.createElement("div");
+  d.className="system";
+  d.textContent=t;
   chat.appendChild(d);
-  chat.scrollTop = chat.scrollHeight;
+  chat.scrollTop=chat.scrollHeight;
 }
 
-/* ===== JOIN / LEAVE ===== */
-function peerJoined(pid) {
-  systemMsg(pid === myId ? "✅ Kamu bergabung" : `👤 ${pid} bergabung`);
-}
-
-function peerLeft(pid) {
-  systemMsg(pid === myId ? "⚠️ Kamu keluar" : `👤 ${pid} keluar`);
-}
-
-/* ===== WAKTU ===== */
-function getCurrentTime() {
-  return new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
-}
-
-/* ===== CHAT ===== */
-function addMsg(text, type, from = "") {
-  const row = document.createElement("div");
-  row.className = "row " + type;
-
-  const bubble = document.createElement("div");
-  bubble.className = "bubble";
-
-  if (type === "peer") {
-    const name = document.createElement("div");
-    name.className = "name";
-    name.textContent = from;
-    name.style.color = getColorForUser(from);
-    bubble.appendChild(name);
+function addMsg(text,type,from=""){
+  const row=document.createElement("div");
+  row.className="row "+type;
+  const b=document.createElement("div");
+  b.className="bubble";
+  if(type==="peer"){
+    const n=document.createElement("div");
+    n.className="name";
+    n.textContent=from;
+    b.appendChild(n);
   }
-
-  bubble.appendChild(document.createTextNode(text));
-
-  const t = document.createElement("div");
-  t.className = "timestamp";
-  t.textContent = getCurrentTime();
-  bubble.appendChild(t);
-
-  row.appendChild(bubble);
+  b.appendChild(document.createTextNode(text));
+  const t=document.createElement("div");
+  t.className="timestamp";
+  t.textContent=new Date().toLocaleTimeString([], {hour:'2-digit',minute:'2-digit'});
+  b.appendChild(t);
+  row.appendChild(b);
   chat.appendChild(row);
-  chat.scrollTop = chat.scrollHeight;
-}
-
-/* ===== WARNA USER ===== */
-const userColors = ["#25D366", "#34B7F1", "#9C27B0", "#FF9800", "#F44336", "#777"];
-
-function getColorForUser(name) {
-  let h = 0;
-  for (let c of name) h = c.charCodeAt(0) + ((h << 5) - h);
-  return userColors[Math.abs(h) % userColors.length];
+  chat.scrollTop=chat.scrollHeight;
 }
 
 /* ===== SIGNALING ===== */
-const SIGNALING_HOST = "p2p-chat-production-3693.up.railway.app";
-const WS_URL = location.protocol === "https:" ? "wss://" : "ws://" + SIGNALING_HOST;
-const ws = new WebSocket(WS_URL);
-const peers = {};
+const SIGNALING_HOST="p2p-chat-production-3693.up.railway.app";
 
-systemMsg("Jangan menunggu hari sempurna untuk berbuat baik.", true);
+/* FIX 2: WS_URL bug */
+const WS_URL=(location.protocol==="https:"?"wss://":"ws://")+SIGNALING_HOST;
 
-ws.onopen = () => {
-  systemMsg("Selamat datang (" + myId + ")");
-  ws.send(JSON.stringify({ type: "register", id: myId }));
+const ws=new WebSocket(WS_URL);
+const peers={};
+
+ws.onopen=()=>{
+  systemMsg("Selamat datang ("+myId+")");
+  ws.send(JSON.stringify({type:"register",id:myId}));
 };
 
-ws.onmessage = e => {
-  const data = JSON.parse(e.data);
-  if (data.type === "peers") {
-    data.peers.forEach(pid => pid !== myId && !peers[pid] && createPeer(pid));
-    return;
+ws.onmessage=e=>{
+  const d=JSON.parse(e.data);
+  if(d.type==="peers"){
+    d.peers.forEach(p=>p!==myId&&!peers[p]&&createPeer(p));
   }
-  if (data.signal) {
-    if (!peers[data.from]) createPeer(data.from);
-    peers[data.from].signal(data.signal);
+  if(d.signal){
+    if(!peers[d.from])createPeer(d.from);
+    peers[d.from].signal(d.signal);
   }
 };
 
-/* ===== WEBRTC PEER ===== */
-function createPeer(pid) {
-  const peer = new SimplePeer({ initiator: myId < pid, trickle: false });
-  peers[pid] = peer;
+function createPeer(pid){
+  const p=new SimplePeer({initiator:myId<pid,trickle:false});
+  peers[pid]=p;
 
-  peer.on("signal", s => ws.send(JSON.stringify({ from: myId, to: pid, signal: s })));
-  peer.on("connect", () => { peerJoined(pid); updateUI(); });
-  peer.on("data", d => handleIncomingData(d.toString(), pid));
-  peer.on("close", () => { peerLeft(pid); delete peers[pid]; updateUI(); });
+  p.on("signal",s=>ws.send(JSON.stringify({from:myId,to:pid,signal:s})));
+  p.on("connect",()=>updateUI());
+  p.on("data",d=>handleIncoming(d.toString(),pid));
+  p.on("close",()=>{delete peers[pid];updateUI();});
 }
 
-/* ===== SEND CHAT ===== */
-function sendMessage() {
-  const text = msgInput.value.trim();
-  if (!text) return;
-
-  let sent = false;
-  Object.values(peers).forEach(p => {
-    if (p.connected) {
-      p.send(text);
-      sent = true;
-    }
-  });
-
-  if (sent) addMsg(text, "me");
-  msgInput.value = "";
+/* ===== CHAT ===== */
+function sendMessage(){
+  const t=msg.value.trim();
+  if(!t)return;
+  Object.values(peers).forEach(p=>p.connected&&p.send(t));
+  addMsg(t,"me");
+  msg.value="";
 }
+sendBtn.onclick=sendMessage;
 
-sendBtn.onclick = sendMessage;
-msgInput.onkeydown = e => e.key === "Enter" && sendMessage();
-
-/* ===== UI ===== */
-function updateUI() {
-  const ready = Object.values(peers).some(p => p.connected);
-  msgInput.disabled = !ready;
-  sendBtn.disabled = !ready;
-}
-
-/* ===== PWA ===== */
-if ("serviceWorker" in navigator) {
-  navigator.serviceWorker.register("service-worker.js");
+function updateUI(){
+  const ok=Object.values(peers).some(p=>p.connected);
+  msg.disabled=!ok;
+  sendBtn.disabled=!ok;
 }
 
 /* ===== WEBTORRENT ===== */
-let wtClient;
-try { wtClient = new WebTorrent(); } catch {}
+const wt=new WebTorrent();
 
-const addFileBtn = document.getElementById("addFileBtn");
-const fileInput = document.getElementById("fileInput");
+const addFileBtn=document.getElementById("addFileBtn");
+const fileInput=document.getElementById("fileInput");
 
-addFileBtn.onclick = () => fileInput.click();
+addFileBtn.onclick=()=>fileInput.click();
 
-fileInput.onchange = () => {
-  if (!wtClient || !fileInput.files.length) return;
-  wtClient.seed(fileInput.files[0], torrent => {
-    addMsg(`📦 File dibagikan\nHASH: ${torrent.infoHash}`, "me");
-    Object.values(peers).forEach(p => p.connected && p.send(JSON.stringify({
-      type: "torrent",
-      magnet: torrent.magnetURI
-    })));
+fileInput.onchange=()=>{
+  if(!fileInput.files.length)return;
+  wt.seed(fileInput.files[0],t=>{
+    addMsg("📦 File dibagikan\nHASH: "+t.infoHash,"me");
+    Object.values(peers).forEach(p=>{
+      p.connected&&p.send(JSON.stringify({type:"torrent",magnet:t.magnetURI}));
+    });
   });
 };
 
-/* ===== TERIMA DATA ===== */
-function handleIncomingData(raw, from) {
-  try {
-    const data = JSON.parse(raw);
-    if (data.type === "torrent" && wtClient) {
-      addMsg("⬇️ Menerima file (hash)", "peer", from);
-      wtClient.add(data.magnet);
+function handleIncoming(raw,from){
+  try{
+    const d=JSON.parse(raw);
+    if(d.type==="torrent"){
+      addMsg("⬇️ Hash diterima","peer",from);
+      wt.add(d.magnet);
       return;
     }
-  } catch {}
-  addMsg(raw, "peer", from);
+  }catch{}
+  addMsg(raw,"peer",from);
 }
 </script>
 
