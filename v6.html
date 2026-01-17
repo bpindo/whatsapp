@@ -309,115 +309,64 @@ function systemMsg(text, highlight = false) {
   chat.scrollTop = chat.scrollHeight;
 }
 
-/* ===== NOTIF JOIN & LEAVE ala WhatsApp GROUP ===== */
+/* ===== JOIN / LEAVE ===== */
 function peerJoined(pid) {
-  if (pid === myId) {
-    systemMsg(`✅ Kamu bergabung`);
-  } else {
-    systemMsg(`👤 ${pid} bergabung`);
-  }
+  systemMsg(pid === myId ? "✅ Kamu bergabung" : `👤 ${pid} bergabung`);
 }
 
 function peerLeft(pid) {
-  if (pid === myId) {
-    systemMsg(`⚠️ Kamu keluar dari grup`);
-  } else {
-    systemMsg(`👤 ${pid} keluar`);
-  }
+  systemMsg(pid === myId ? "⚠️ Kamu keluar" : `👤 ${pid} keluar`);
 }
 
-/* ===== GET CURRENT TIME ===== */
+/* ===== WAKTU ===== */
 function getCurrentTime() {
-  return new Date().toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'});
+  return new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
 }
 
-/* ===== TAMBAH PESAN ===== */
+/* ===== CHAT ===== */
 function addMsg(text, type, from = "") {
   const row = document.createElement("div");
   row.className = "row " + type;
 
+  const bubble = document.createElement("div");
+  bubble.className = "bubble";
+
   if (type === "peer") {
-    const avatar = document.createElement("img");
-    avatar.className = "avatar";
-    avatar.alt = from;
-    avatar.src = `https://api.dicebear.com/6.x/bottts/svg?seed=${encodeURIComponent(from)}&scale=90`;
-    row.appendChild(avatar);
-
-    const bubble = document.createElement("div");
-    bubble.className = "bubble";
-
     const name = document.createElement("div");
     name.className = "name";
     name.textContent = from;
     name.style.color = getColorForUser(from);
-
     bubble.appendChild(name);
-    bubble.appendChild(document.createTextNode(text));
-
-    // Timestamp
-    const timestamp = document.createElement("div");
-    timestamp.className = "timestamp";
-    timestamp.textContent = getCurrentTime();
-    bubble.appendChild(timestamp);
-
-    row.appendChild(bubble);
-  } else if(type === "me") {
-    const bubble = document.createElement("div");
-    bubble.className = "bubble";
-    bubble.appendChild(document.createTextNode(text));
-
-    // Timestamp
-    const timestamp = document.createElement("div");
-    timestamp.className = "timestamp";
-    timestamp.textContent = getCurrentTime();
-    bubble.appendChild(timestamp);
-
-    row.appendChild(bubble);
-  } else {
-    // system message
-    const bubble = document.createElement("div");
-    bubble.className = "bubble";
-    bubble.appendChild(document.createTextNode(text));
-    row.appendChild(bubble);
   }
 
+  bubble.appendChild(document.createTextNode(text));
+
+  const t = document.createElement("div");
+  t.className = "timestamp";
+  t.textContent = getCurrentTime();
+  bubble.appendChild(t);
+
+  row.appendChild(bubble);
   chat.appendChild(row);
   chat.scrollTop = chat.scrollHeight;
 }
 
-/* ===== COLOR PALETTE seperti WhatsApp (6 warna) ===== */
-const userColors = [
-  "#25D366", // hijau WhatsApp
-  "#34B7F1", // biru
-  "#9C27B0", // ungu
-  "#FF9800", // oranye
-  "#F44336", // merah
-  "#777777"  // abu-abu gelap
-];
+/* ===== WARNA USER ===== */
+const userColors = ["#25D366", "#34B7F1", "#9C27B0", "#FF9800", "#F44336", "#777"];
 
-function getColorForUser(username) {
-  const index = Math.abs(hashCode(username)) % userColors.length;
-  return userColors[index];
-}
-
-function hashCode(str) {
-  let hash = 0;
-  for(let i=0; i<str.length; i++) {
-    hash = str.charCodeAt(i) + ((hash << 5) - hash);
-  }
-  return hash;
+function getColorForUser(name) {
+  let h = 0;
+  for (let c of name) h = c.charCodeAt(0) + ((h << 5) - h);
+  return userColors[Math.abs(h) % userColors.length];
 }
 
 /* ===== SIGNALING ===== */
 const SIGNALING_HOST = "p2p-chat-production-3693.up.railway.app";
-const WS_URL = location.protocol === "https:"
-  ? "wss://" + SIGNALING_HOST
-  : "ws://" + SIGNALING_HOST;
-
+const WS_URL = location.protocol === "https:" ? "wss://" : "ws://" + SIGNALING_HOST;
 const ws = new WebSocket(WS_URL);
 const peers = {};
 
-systemMsg("Jangan menunggu hari yang sempurna untuk berbuat baik, karena kebaikanlah yang akan menyempurnakan harimu.", true);
+systemMsg("Jangan menunggu hari sempurna untuk berbuat baik.", true);
 
 ws.onopen = () => {
   systemMsg("Selamat datang (" + myId + ")");
@@ -426,75 +375,46 @@ ws.onopen = () => {
 
 ws.onmessage = e => {
   const data = JSON.parse(e.data);
-
   if (data.type === "peers") {
-    data.peers.forEach(pid => {
-      if (pid !== myId && !peers[pid]) createPeer(pid);
-    });
+    data.peers.forEach(pid => pid !== myId && !peers[pid] && createPeer(pid));
     return;
   }
-
   if (data.signal) {
     if (!peers[data.from]) createPeer(data.from);
     peers[data.from].signal(data.signal);
   }
 };
 
-/* ===== PEER ===== */
+/* ===== WEBRTC PEER ===== */
 function createPeer(pid) {
-  const peer = new SimplePeer({
-    initiator: myId < pid,
-    trickle: false
-  });
-
+  const peer = new SimplePeer({ initiator: myId < pid, trickle: false });
   peers[pid] = peer;
 
-  peer.on("signal", s => {
-    ws.send(JSON.stringify({ from: myId, to: pid, signal: s }));
-  });
-
-  peer.on("connect", () => {
-    peerJoined(pid);
-    updateUI();
-  });
-
-  peer.on("data", d => {
-    addMsg(d.toString(), "peer", pid);
-  });
-
-  peer.on("close", () => {
-    peerLeft(pid);
-    delete peers[pid];
-    updateUI();
-  });
+  peer.on("signal", s => ws.send(JSON.stringify({ from: myId, to: pid, signal: s })));
+  peer.on("connect", () => { peerJoined(pid); updateUI(); });
+  peer.on("data", d => handleIncomingData(d.toString(), pid));
+  peer.on("close", () => { peerLeft(pid); delete peers[pid]; updateUI(); });
 }
 
-/* ===== SEND ===== */
+/* ===== SEND CHAT ===== */
 function sendMessage() {
   const text = msgInput.value.trim();
   if (!text) return;
 
-  let ok = false;
+  let sent = false;
   Object.values(peers).forEach(p => {
     if (p.connected) {
       p.send(text);
-      ok = true;
+      sent = true;
     }
   });
 
-  if (ok) addMsg(text, "me");
+  if (sent) addMsg(text, "me");
   msgInput.value = "";
 }
 
 sendBtn.onclick = sendMessage;
-
-/* ENTER = SEND */
-msgInput.addEventListener("keydown", e => {
-  if (e.key === "Enter") {
-    e.preventDefault();
-    sendMessage();
-  }
-});
+msgInput.onkeydown = e => e.key === "Enter" && sendMessage();
 
 /* ===== UI ===== */
 function updateUI() {
@@ -508,90 +428,38 @@ if ("serviceWorker" in navigator) {
   navigator.serviceWorker.register("service-worker.js");
 }
 
-/* ===== WEBTORRENT LAYER (TAMBAHAN AMAN) ===== */
-let wtClient = null;
-try {
-  wtClient = new WebTorrent();
-} catch (e) {
-  console.warn("WebTorrent tidak aktif");
-}
+/* ===== WEBTORRENT ===== */
+let wtClient;
+try { wtClient = new WebTorrent(); } catch {}
 
 const addFileBtn = document.getElementById("addFileBtn");
 const fileInput = document.getElementById("fileInput");
 
-/* klik ➕ */
 addFileBtn.onclick = () => fileInput.click();
 
-/* pilih file → auto seed */
 fileInput.onchange = () => {
   if (!wtClient || !fileInput.files.length) return;
-
-  const file = fileInput.files[0];
-
-  wtClient.seed(file, torrent => {
-    const hash = torrent.infoHash;
-    const magnet = torrent.magnetURI;
-
-    // tampilkan ke chat (HASH SAJA)
-    addMsg(`📦 File dibagikan\nHASH: ${hash}`, "me");
-
-    // kirim magnet ke semua peer (silent)
-    Object.values(peers).forEach(p => {
-      if (p.connected) {
-        p.send(JSON.stringify({
-          type: "torrent",
-          magnet
-        }));
-      }
-    });
+  wtClient.seed(fileInput.files[0], torrent => {
+    addMsg(`📦 File dibagikan\nHASH: ${torrent.infoHash}`, "me");
+    Object.values(peers).forEach(p => p.connected && p.send(JSON.stringify({
+      type: "torrent",
+      magnet: torrent.magnetURI
+    })));
   });
 };
 
-/* override penerima data (tanpa rusak chat) */
-const _oldAddMsg = addMsg;
-
+/* ===== TERIMA DATA ===== */
 function handleIncomingData(raw, from) {
   try {
     const data = JSON.parse(raw);
     if (data.type === "torrent" && wtClient) {
-      _oldAddMsg("⬇️ Menerima file...\nHASH diterima", "peer", from);
+      addMsg("⬇️ Menerima file (hash)", "peer", from);
       wtClient.add(data.magnet);
       return;
     }
   } catch {}
-
-  _oldAddMsg(raw, "peer", from);
+  addMsg(raw, "peer", from);
 }
-
-/* patch 1 baris listener peer */
-const _createPeer = createPeer;
-createPeer = function(pid) {
-  const peer = new SimplePeer({
-    initiator: myId < pid,
-    trickle: false
-  });
-
-  peers[pid] = peer;
-
-  peer.on("signal", s => {
-    ws.send(JSON.stringify({ from: myId, to: pid, signal: s }));
-  });
-
-  peer.on("connect", () => {
-    peerJoined(pid);
-    updateUI();
-  });
-
-  peer.on("data", d => {
-    handleIncomingData(d.toString(), pid);
-  });
-
-  peer.on("close", () => {
-    peerLeft(pid);
-    delete peers[pid];
-    updateUI();
-  });
-};
 </script>
 
 </body>
