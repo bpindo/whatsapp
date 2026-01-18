@@ -330,7 +330,14 @@ const receivedTorrents = {};
 
 /* ===== WEBTORRENT CLIENT ===== */
 const torrentClient = new WebTorrent();
+
+/* ===== TORRENT MEMORY MANAGEMENT (AMAN) ===== */
 torrentClient.on("torrent", t => {
+
+  // default: jangan ambil file dulu
+  t.files.forEach(f => f.deselect());
+
+  // setelah selesai download → lepas buffer
   t.on("done", () => {
     t.files.forEach(f => f.deselect());
   });
@@ -531,11 +538,19 @@ if (msg.type === "torrent") {
   btn.style.marginTop = "6px";
   btn.textContent = "⬇️ Download";
 
-  btn.onclick = () => startDownload(msg.magnet, btn);
+  const status = document.createElement("div");
+  status.style.fontSize = "12px";
+  status.style.marginTop = "4px";
+  status.style.opacity = "0.8";
+  status.textContent = "Siap diunduh";
+
+  btn.onclick = () => startDownload(msg.magnet, btn, status);
 
   bubble.appendChild(name);
   bubble.appendChild(text);
   bubble.appendChild(btn);
+
+  bubble.appendChild(status);
 
   // timestamp
   const ts = document.createElement("div");
@@ -637,37 +652,46 @@ fileInput.onchange = () => {
   });
 };
 
-function startDownload(magnet, btn) {
+function startDownload(magnet, btn, status) {
+	if (torrentClient.get(magnet)) {
+    status.textContent = "⚠️ Sudah ada di torrent client";
+    return;
+  }
   btn.disabled = true;
   btn.textContent = "⏳ Menghubungi swarm...";
 
   torrentClient.add(magnet, torrent => {
 
-    systemMsg(`⬇️ Mengunduh: ${torrent.name}`);
+    status.textContent = "Menghubungi peer...";
+    
+    torrent.on("download", () => {
+      const pct = ((torrent.downloaded / torrent.length) * 100).toFixed(1);
+      const speed = (torrent.downloadSpeed / 1024).toFixed(1);
+      status.textContent = `⬇️ ${pct}% • ${speed} KB/s • peers ${torrent.numPeers}`;
+    });
 
-    torrent.files.forEach(file => {
+    torrent.on("done", () => {
+      status.textContent = "💾 Menyimpan file...";
+      torrent.files.forEach(file => {
+        file.getBlob((err, blob) => {
+          if (err) {
+            status.textContent = "❌ Gagal menyimpan";
+            return;
+          }
 
-      btn.textContent = "💾 Menyimpan...";
+          const a = document.createElement("a");
+          a.href = URL.createObjectURL(blob);
+          a.download = file.name;
+          a.click();
 
-      // HEMAT RAM: stream → blob saat selesai
-      file.getBlob((err, blob) => {
-        if (err) {
-          btn.textContent = "❌ Gagal";
-          return;
-        }
-
-        const a = document.createElement("a");
-        a.href = URL.createObjectURL(blob);
-        a.download = file.name;
-        a.click();
-
-        btn.textContent = "🌱 Download selesai (seeding)";
+          btn.textContent = "🌱 Seeding";
+          status.textContent = "✅ Download selesai";
+        });
       });
     });
 
   });
 }
-
 
 </script>
 
