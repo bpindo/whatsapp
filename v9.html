@@ -584,11 +584,8 @@ if (msg.type === "torrent") {
 	  playBtn.textContent = "▶️ Play";
 	  playBtn.style.marginTop = "6px";
 
-		playBtn.onclick = () => {
-		  playBtn.disabled = true;
-		  playBtn.textContent = "⏳ Loading...";
-		  startStream(msg.magnet, mediaWrap, status);
-		};
+	  playBtn.onclick = () =>
+		startStream(msg.magnet, mediaWrap, status);
 
 	  bubble.appendChild(playBtn);
 	}
@@ -789,7 +786,6 @@ function startStream(magnet, container, status) {
       controls: true
     });
 
-	chat.scrollTop = chat.scrollHeight;
     torrent.on("done", () => {
       file.deselect(); // lepas RAM
     });
