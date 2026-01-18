@@ -280,6 +280,25 @@ html, body {
   cursor: default;
 }
 
+/* ===== PROGRESS BAR ===== */
+.progress-wrap {
+  display: none;
+  width: 100%;
+  height: 6px;
+  background: #ddd;
+  border-radius: 4px;
+  margin-top: 6px;
+  overflow: hidden;
+}
+
+.progress-bar {
+  height: 100%;
+  width: 0%;
+  background: linear-gradient(90deg, #25D366, #4CAF50);
+  transition: width 0.3s ease;
+}
+
+
 </style>
 </head>
 
@@ -541,18 +560,24 @@ if (msg.type === "torrent") {
   const status = document.createElement("div");
   status.style.fontSize = "12px";
   status.style.marginTop = "4px";
-  status.style.opacity = "0.8";
+  status.style.opacity = "0.85";
   status.textContent = "Siap diunduh";
+
+  const progressWrap = document.createElement("div");
+  progressWrap.className = "progress-wrap";
+
+  const progressBar = document.createElement("div");
+  progressBar.className = "progress-bar";
+  progressWrap.appendChild(progressBar);
 
   btn.onclick = () => startDownload(msg.magnet, btn, status);
 
   bubble.appendChild(name);
   bubble.appendChild(text);
   bubble.appendChild(btn);
-
   bubble.appendChild(status);
+  bubble.appendChild(progressWrap);
 
-  // timestamp
   const ts = document.createElement("div");
   ts.className = "timestamp";
   ts.textContent = getCurrentTime();
@@ -565,6 +590,7 @@ if (msg.type === "torrent") {
 
   return;
 }
+
 
 
   addMsg(d.toString(), "peer", pid);
@@ -653,27 +679,43 @@ fileInput.onchange = () => {
 };
 
 function startDownload(magnet, btn, status) {
-	if (torrentClient.get(magnet)) {
-    status.textContent = "⚠️ Sudah ada di torrent client";
+  if (torrentClient.get(magnet)) {
+    status.textContent = "⚠️ Sudah aktif";
     return;
   }
+
   btn.disabled = true;
   btn.textContent = "⏳ Menghubungi swarm...";
 
   torrentClient.add(magnet, torrent => {
 
-    status.textContent = "Menghubungi peer...";
-    
+    // hemat RAM
+    torrent.files.forEach(f => f.deselect());
+	const progressWrap = btn.parentNode.querySelector(".progress-wrap");
+	if (progressWrap) progressWrap.style.display = "block";
+
+    const progressBar = btn.parentNode.querySelector(".progress-bar");
+
     torrent.on("download", () => {
       const pct = ((torrent.downloaded / torrent.length) * 100).toFixed(1);
       const speed = (torrent.downloadSpeed / 1024).toFixed(1);
-      status.textContent = `⬇️ ${pct}% • ${speed} KB/s • peers ${torrent.numPeers}`;
+
+      if (progressBar) progressBar.style.width = pct + "%";
+
+      status.textContent =
+        `⬇️ ${pct}% • ${speed} KB/s • 👥 ${torrent.numPeers}`;
     });
 
     torrent.on("done", () => {
+      if (progressBar) progressBar.style.width = "100%";
+
       status.textContent = "💾 Menyimpan file...";
+
       torrent.files.forEach(file => {
+        file.select();
         file.getBlob((err, blob) => {
+          file.deselect();
+
           if (err) {
             status.textContent = "❌ Gagal menyimpan";
             return;
@@ -685,14 +727,13 @@ function startDownload(magnet, btn, status) {
           a.click();
 
           btn.textContent = "🌱 Seeding";
-          status.textContent = "✅ Download selesai";
+          status.textContent = "✅ Selesai & Seeding";
         });
       });
     });
 
   });
 }
-
 </script>
 
 </body>
