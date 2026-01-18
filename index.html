@@ -552,6 +552,9 @@ if (msg.type === "torrent") {
 
   const text = document.createElement("div");
   text.textContent = `📦 ${msg.name}`;
+  
+  const mediaWrap = document.createElement("div"); 	//KT6
+  mediaWrap.style.marginTop = "8px";				//KT6
 
   const btn = document.createElement("button");
   btn.style.marginTop = "6px";
@@ -574,9 +577,26 @@ if (msg.type === "torrent") {
 
   bubble.appendChild(name);
   bubble.appendChild(text);
+  
+	  // JIKA FILE ADALAH MEDIA == KT6
+	if (msg.name.match(/\.(mp4|webm|mp3|ogg|wav)$/i)) {
+	  const playBtn = document.createElement("button");
+	  playBtn.textContent = "▶️ Play";
+	  playBtn.style.marginTop = "6px";
+
+	  playBtn.onclick = () =>
+		startStream(msg.magnet, mediaWrap, status);
+
+	  bubble.appendChild(playBtn);
+	}
+
+  
   bubble.appendChild(btn);
   bubble.appendChild(status);
   bubble.appendChild(progressWrap);
+  
+  bubble.appendChild(mediaWrap);		//KT6
+
 
   const ts = document.createElement("div");
   ts.className = "timestamp";
@@ -734,6 +754,44 @@ function startDownload(magnet, btn, status) {
 
   });
 }
+function startStream(magnet, container, status) {
+  if (torrentClient.get(magnet)) {
+    status.textContent = "▶️ Sudah streaming";
+    return;
+  }
+
+  status.textContent = "▶️ Memulai streaming...";
+
+  torrentClient.add(magnet, torrent => {
+
+    // tetap hemat RAM
+    torrent.files.forEach(f => f.deselect());
+
+    // cari file media
+    const file = torrent.files.find(f =>
+      f.name.match(/\.(mp4|webm|mp3|ogg|wav)$/i)
+    );
+
+    if (!file) {
+      status.textContent = "❌ Media tidak ditemukan";
+      return;
+    }
+
+    // hanya ambil file ini
+    file.select();
+
+    // audio / video
+    file.appendTo(container, {
+      autoplay: true,
+      controls: true
+    });
+
+    torrent.on("done", () => {
+      file.deselect(); // lepas RAM
+    });
+  });
+}
+
 </script>
 
 </body>
