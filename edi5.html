@@ -53,6 +53,18 @@ body.full #exitFull{display:block;}
 <button id="exitFull">⤡</button>
 
 <script>
+const STORAGE_KEY="editor_v1_code";
+// Load saved code saat halaman dibuka
+const saved = localStorage.getItem(STORAGE_KEY);
+if(saved){ code.value = saved; updateLines(); run(); }
+
+// Simpan otomatis setiap kali input berubah
+code.addEventListener("input", ()=>{
+  localStorage.setItem(STORAGE_KEY, code.value);
+  updateLines();
+});
+
+
 // Elemen
 const code=document.getElementById("code");
 const lines=document.getElementById("lineNumbers");
