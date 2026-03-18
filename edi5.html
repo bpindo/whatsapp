@@ -173,6 +173,14 @@ body.full #exitFull{
   <button id="fullOutputBtn">🔹 Full Output</button>
 </div>
 
+<!-- BARIS BARU UNTUK PROYEK -->
+<div class="controls" style="margin-top:6px;">
+  <button id="newProjectBtn">🆕 New Proyek</button>
+  <select id="openProjectSelect"><option value="">Open Proyek</option></select>
+  <button id="deleteProjectBtn">🗑️ Hapus Proyek</button>
+  <button id="saveProjectBtn">💾 Save Proyek</button>
+</div>
+
 <iframe id="output" sandbox="allow-scripts allow-same-origin"></iframe>
 
 <button id="exitFull">⤡</button>
@@ -363,8 +371,96 @@ updateLines();
 if(!saved) run();
 code.focus();
 
+const PROJECT_KEY = "editor_projects";
+let currentProject = null;
+
+// Load semua proyek dari localStorage
+function loadProjects(){
+  const projects = JSON.parse(localStorage.getItem(PROJECT_KEY) || "{}");
+  const select = document.getElementById("openProjectSelect");
+  select.innerHTML = `<option value="">Open Proyek</option>`;
+  for(let name in projects){
+    select.innerHTML += `<option value="${name}">${name}</option>`;
+  }
+  return projects;
+}
+
+// Simpan proyek saat ini otomatis
+function saveCurrentProject(){
+  if(!currentProject) return;
+  const projects = loadProjects();
+  projects[currentProject] = code.value;
+  localStorage.setItem(PROJECT_KEY, JSON.stringify(projects));
+}
+
+// New Project
+document.getElementById("newProjectBtn").onclick = ()=>{
+  const name = prompt("Masukkan nama proyek baru:");
+  if(!name) return alert("Nama proyek dibatalkan!");
+  const projects = loadProjects();
+  if(projects[name]) return alert("Proyek sudah ada!");
+  projects[name] = ""; // proyek kosong
+  localStorage.setItem(PROJECT_KEY, JSON.stringify(projects));
+  currentProject = name;
+  code.value = "";
+  updateLines();
+  run();
+  loadProjects();
+  document.getElementById("openProjectSelect").value = currentProject;
+};
+
+// Open Project
+document.getElementById("openProjectSelect").onchange = function(){
+  const name = this.value;
+  if(!name) return;
+  saveCurrentProject(); // simpan proyek sebelumnya
+  const projects = loadProjects();
+  code.value = projects[name] || "";
+  currentProject = name;
+  updateLines();
+  run();
+};
+
+// Delete Project
+document.getElementById("deleteProjectBtn").onclick = ()=>{
+  if(!currentProject) return alert("Tidak ada proyek aktif!");
+  if(!confirm(`Hapus proyek "${currentProject}"?`)) return;
+  const projects = loadProjects();
+  delete projects[currentProject];
+  localStorage.setItem(PROJECT_KEY, JSON.stringify(projects));
+  code.value = "";
+  currentProject = null;
+  updateLines();
+  run();
+  loadProjects();
+  document.getElementById("openProjectSelect").value = "";
+};
+
+// Save Project
+document.getElementById("saveProjectBtn").onclick = ()=>{
+  if(currentProject){
+    // Save ke proyek yang sedang dibuka
+    const projects = loadProjects();
+    projects[currentProject] = code.value;
+    localStorage.setItem(PROJECT_KEY, JSON.stringify(projects));
+    showToast(`💾 Proyek "${currentProject}" tersimpan!`);
+  }else{
+    // Jika belum ada proyek, minta user buat proyek baru
+    const name = prompt("Belum ada proyek terbuka. Masukkan nama proyek baru:");
+    if(!name) return alert("Proyek dibatalkan!");
+    const projects = loadProjects();
+    if(projects[name]) return alert("Proyek sudah ada!");
+    projects[name] = code.value; // simpan kode sekarang ke proyek baru
+    localStorage.setItem(PROJECT_KEY, JSON.stringify(projects));
+    currentProject = name;
+    loadProjects();
+    document.getElementById("openProjectSelect").value = currentProject;
+    showToast(`💾 Proyek "${currentProject}" tersimpan!`);
+  }
+};
+
 // AUTO SAVE
-window.addEventListener("beforeunload",()=>{ localStorage.setItem(STORAGE_KEY, code.value); });
+//window.addEventListener("beforeunload",()=>{ localStorage.setItem(STORAGE_KEY, code.value); });
 </script>
 
 </body>
