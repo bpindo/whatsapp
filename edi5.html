@@ -140,6 +140,7 @@ body.full #exitFull{
 
 <div class="controls">
   <button onclick="pasteCode()">📋 Paste</button>
+  <button onclick="copyCode()">📄 Copy</button>
   <button onclick="clearCode()">🗑️ Clear</button>
   <label><input type="checkbox" id="toggleLine" checked> Baris</label>
   <label><input type="checkbox" id="fullMode"> Full</label>
@@ -285,6 +286,32 @@ async function pasteCode(){
   code.value = await navigator.clipboard.readText();
   updateLines();
   run();
+}
+
+function showToast(msg){
+  const t = document.createElement("div");
+  t.textContent = msg;
+  t.style.position = "fixed";
+  t.style.bottom = "20px";
+  t.style.left = "50%";
+  t.style.transform = "translateX(-50%)";
+  t.style.background = "#1e293b";
+  t.style.color = "#fff";
+  t.style.padding = "8px 12px";
+  t.style.borderRadius = "6px";
+  t.style.zIndex = "9999";
+  document.body.appendChild(t);
+
+  setTimeout(()=>t.remove(),1500);
+}
+
+async function copyCode(){
+  try{
+    await navigator.clipboard.writeText(code.value);
+    showToast("✅ Copied");
+  }catch{
+    showToast("❌ Gagal copy");
+  }
 }
 
 function clearCode(){
