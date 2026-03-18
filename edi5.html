@@ -6,7 +6,7 @@
 <!-- ANTI ZOOM -->
 <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no">
 
-<title>Editor V1.4.1</title>
+<title>Editor V1.4.2</title>
 
 <style>
 html, body{
@@ -46,6 +46,7 @@ body.full .controls{
   user-select:none;
   border-right:1px solid #1f2937;
   white-space:pre;
+  overflow:auto;
 }
 
 #lineNumbers span.active{
@@ -142,7 +143,7 @@ body.full-output .controls{
 
 /* FLOAT EXIT BUTTON bisa tetap untuk exit full */
 #exitFull{
-  display:none; /* default hidden */
+  display:none;
 }
 
 body.full-input #exitFull,
@@ -150,7 +151,6 @@ body.full-output #exitFull{
   display:block;
 }
 
-/* tampil saat full */
 body.full #exitFull{
   display:block;
 }
@@ -169,35 +169,26 @@ body.full #exitFull{
   <button onclick="copyCode()">📄 Copy</button>
   <button onclick="clearCode()">🗑️ Clear</button>
   <label><input type="checkbox" id="toggleLine" checked> Baris</label>
-  
-  <!-- Hapus checkbox fullMode -->
   <button id="fullInputBtn">🔹 Full Input</button>
   <button id="fullOutputBtn">🔹 Full Output</button>
 </div>
 
-
 <iframe id="output" sandbox="allow-scripts allow-same-origin"></iframe>
 
-<!-- FLOAT BUTTON -->
 <button id="exitFull">⤡</button>
 
 <script>
-
 const STORAGE_KEY = "editor_v1_code";
 const code = document.getElementById("code");
 const lines = document.getElementById("lineNumbers");
 const toggle = document.getElementById("toggleLine");
-const full = document.getElementById("fullMode");
 const output = document.getElementById("output");
 const exitBtn = document.getElementById("exitFull");
 
-// VOID TAG
-const voidTags = [
-"area","base","br","col","embed","hr","img",
-"input","link","meta","source","track","wbr"
-];
+// VOID TAGS
+const voidTags = ["area","base","br","col","embed","hr","img","input","link","meta","source","track","wbr"];
 
-// VALIDATOR
+// VALIDATOR HTML
 function validateHTML(text){
   const stack = [];
   const errors = new Set();
@@ -205,16 +196,14 @@ function validateHTML(text){
 
   rows.forEach((row, index)=>{
     const tags = row.match(/<\/?[^>]+>/g) || [];
-
     tags.forEach(tag=>{
       const isClose = tag.startsWith("</");
       const name = tag.replace(/<\/?|>/g,"").split(" ")[0].toLowerCase();
-
       if(voidTags.includes(name)) return;
       if(tag.endsWith("/>")) return;
 
       if(!isClose){
-        stack.push({name, line:index});
+        stack.push({name,line:index});
       }else{
         if(stack.length === 0 || stack[stack.length-1].name !== name){
           errors.add(index);
@@ -234,14 +223,14 @@ function getCurrentLine(){
   return code.value.substr(0, code.selectionStart).split("\n").length - 1;
 }
 
-// LOAD DARI STORAGE
+// LOAD STORAGE
 const saved = localStorage.getItem(STORAGE_KEY);
 if(saved){
   code.value = saved;
-  run(); // penting
+  run();
 }
 
-// UPDATE LINE
+// UPDATE LINE NUMBERS
 function updateLines(){
   if(!toggle.checked){
     lines.style.display="none";
@@ -255,157 +244,127 @@ function updateLines(){
   const errorLines = validateHTML(code.value);
 
   let html = "";
-
   rows.forEach((_, i)=>{
     let cls = "";
-    if(i === active) cls += "active ";
-    if(errorLines.has(i)) cls += "error";
+    if(i===active) cls+="active ";
+    if(errorLines.has(i)) cls+="error";
     html += `<span class="${cls}">${i+1}</span>\n`;
   });
 
   lines.innerHTML = html;
-  lines.scrollTop = code.scrollTop;
+
+  // Scroll otomatis ke baris aktif
+  const activeSpan = lines.querySelector("span.active");
+  if(activeSpan){
+    const offset = activeSpan.offsetTop - lines.clientHeight + activeSpan.offsetHeight + 2;
+    lines.scrollTop = offset > 0 ? offset : 0;
+  }
 
   code.style.setProperty('--line', active);
   code.classList.add('active-line');
 }
 
-// RUN
+// RUN KODE
 function run(){
   output.srcdoc = code.value;
 }
 
 // DEBOUNCE
-function debounce(fn,ms){
+function debounce(fn, ms){
   let t;
   return (...a)=>{
     clearTimeout(t);
-    t=setTimeout(()=>fn(...a),ms);
+    t = setTimeout(()=>fn(...a), ms);
   }
 }
 
+// LIVE UPDATE
 const live = debounce(()=>{
   updateLines();
   run();
-
   localStorage.setItem(STORAGE_KEY, code.value);
-
-  // indikator save
-  document.title = "✔ Tersimpan";
-  setTimeout(()=>document.title="Editor V1.4.1", 500);
+  document.title="✔ Tersimpan";
+  setTimeout(()=>document.title="Editor V1.4.2",500);
 },150);
 
 code.addEventListener("input", live);
 code.addEventListener("click", updateLines);
 code.addEventListener("keyup", updateLines);
+code.addEventListener("scroll",()=>{ lines.scrollTop = code.scrollTop; });
 
-code.addEventListener("scroll", ()=>{
-  lines.scrollTop = code.scrollTop;
-});
-
-
-// EXIT FULL BUTTON
-
-// ACTION
+// PASTE & COPY
 async function pasteCode(){
   code.value = await navigator.clipboard.readText();
-  // langsung save
   localStorage.setItem(STORAGE_KEY, code.value);
   updateLines();
   run();
+}
+
+async function copyCode(){
+  if(!code.value.trim()){ showToast("⚠️ Kosong"); return; }
+  try{
+    await navigator.clipboard.writeText(code.value);
+    showToast("✅ Copied");
+  }catch{ showToast("❌ Gagal copy"); }
 }
 
 function showToast(msg){
   const t = document.createElement("div");
   t.textContent = msg;
-  t.style.position = "fixed";
-  t.style.bottom = "20px";
-  t.style.left = "50%";
-  t.style.transform = "translateX(-50%)";
-  t.style.background = "#1e293b";
-  t.style.color = "#fff";
-  t.style.padding = "8px 12px";
-  t.style.borderRadius = "6px";
-  t.style.zIndex = "9999";
+  Object.assign(t.style,{
+    position:"fixed",bottom:"20px",left:"50%",transform:"translateX(-50%)",
+    background:"#1e293b",color:"#fff",padding:"8px 12px",borderRadius:"6px",zIndex:"9999"
+  });
   document.body.appendChild(t);
-
   setTimeout(()=>t.remove(),1500);
 }
 
-async function copyCode(){
-  if(!code.value.trim()){
-    showToast("⚠️ Kosong");
-    return;
-  }
-
-  try{
-    await navigator.clipboard.writeText(code.value);
-    showToast("✅ Copied");
-  }catch{
-    showToast("❌ Gagal copy");
-  }
-}
-
+// FULL INPUT / OUTPUT
 const fullInputBtn = document.getElementById("fullInputBtn");
 const fullOutputBtn = document.getElementById("fullOutputBtn");
+let isFullInput=false,isFullOutput=false;
 
-// STATE
-let isFullInput = false;
-let isFullOutput = false;
-
-// Full Input
-
-// Full Output
-
-// Exit button
-exitBtn.onclick = () => {
-  isFullInput = false;
-  isFullOutput = false;
-  document.body.classList.remove("full-input", "full-output");
+exitBtn.onclick=()=>{
+  isFullInput=false;
+  isFullOutput=false;
+  document.body.classList.remove("full-input","full-output");
 };
 
-fullInputBtn.onclick = () => {
-  isFullInput = !isFullInput;
-  isFullOutput = false;
-  document.body.classList.toggle("full-input", isFullInput);
+fullInputBtn.onclick=()=>{
+  isFullInput=!isFullInput;
+  isFullOutput=false;
+  document.body.classList.toggle("full-input",isFullInput);
   document.body.classList.remove("full-output");
-
-  fullInputBtn.classList.toggle("active", isFullInput);
+  fullInputBtn.classList.toggle("active",isFullInput);
   fullOutputBtn.classList.remove("active");
 };
 
-fullOutputBtn.onclick = () => {
-  isFullOutput = !isFullOutput;
-  isFullInput = false;
-  document.body.classList.toggle("full-output", isFullOutput);
+fullOutputBtn.onclick=()=>{
+  isFullOutput=!isFullOutput;
+  isFullInput=false;
+  document.body.classList.toggle("full-output",isFullOutput);
   document.body.classList.remove("full-input");
-
-  fullOutputBtn.classList.toggle("active", isFullOutput);
+  fullOutputBtn.classList.toggle("active",isFullOutput);
   fullInputBtn.classList.remove("active");
 };
 
-
+// CLEAR CODE
 function clearCode(){
   code.value="";
   output.srcdoc="";
-  // HAPUS STORAGE
-localStorage.removeItem(STORAGE_KEY);
+  localStorage.removeItem(STORAGE_KEY);
   updateLines();
 }
+
 toggle.addEventListener("change", updateLines);
 
+// INITIAL LOAD
 updateLines();
-// jalankan hanya jika tidak ada saved
-if(!saved){
-  run();
-}
-
+if(!saved) run();
 code.focus();
 
-window.addEventListener("beforeunload", ()=>{
-  localStorage.setItem(STORAGE_KEY, code.value);
-});
-
+// AUTO SAVE
+window.addEventListener("beforeunload",()=>{ localStorage.setItem(STORAGE_KEY, code.value); });
 </script>
 
 </body>
