@@ -1,137 +1,27 @@
-
 <!DOCTYPE html>
 <html lang="id">
 <head>
 <meta charset="UTF-8">
-
-<!-- ANTI ZOOM -->
 <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no">
-
-<title>Editor V1.4.1</title>
-
+<title>Editor V1.4.1 - Preview</title>
 <style>
-html, body{
-  margin:0;
-  padding:0;
-  height:100dvh;
-  display:flex;
-  flex-direction:column;
-  font-family:system-ui;
-  background:#0f172a;
-  overflow:hidden;
-}
-
-/* FULL MODE */
-body.full #output,
-body.full .controls{
-  display:none;
-}
-
-/* WRAPPER */
-#editorWrap{
-  flex:1;
-  display:flex;
-  overflow:hidden;
-  border-bottom:1px solid #1f2937;
-}
-
-/* LINE NUMBER */
-#lineNumbers{
-  background:#020617;
-  color:#64748b;
-  font-family:monospace;
-  font-size:16px;
-  line-height:1.6;
-  padding:10px 6px 10px 8px;
-  text-align:right;
-  user-select:none;
-  border-right:1px solid #1f2937;
-  white-space:pre;
-}
-
-#lineNumbers span.active{
-  color:#38bdf8;
-}
-
-#lineNumbers span.error{
-  color:#ef4444;
-  font-weight:bold;
-}
-
-/* TEXTAREA */
-textarea{
-  flex:1;
-  background:#020617;
-  color:#e2e8f0;
-  font-family:monospace;
-  font-size:16px;
-  line-height:1.6;
-  border:none;
-  outline:none;
-  padding:10px;
-  resize:none;
-  overflow:auto;
-  caret-color:#38bdf8;
-}
-
-/* ACTIVE LINE */
-textarea.active-line{
-  background-image: linear-gradient(
-    transparent calc(var(--line) * 1.6em),
-    rgba(56,189,248,0.15) calc(var(--line) * 1.6em),
-    rgba(56,189,248,0.15) calc((var(--line)+1) * 1.6em),
-    transparent calc((var(--line)+1) * 1.6em)
-  );
-  background-repeat:no-repeat;
-}
-
-/* CONTROLS */
-.controls{
-  display:flex;
-  gap:6px;
-  padding:6px;
-  background:#020617;
-}
-
-button, label{
-  flex:1;
-  padding:10px;
-  border:none;
-  border-radius:6px;
-  background:#1e293b;
-  color:#e2e8f0;
-  font-size:14px;
-}
-
-/* OUTPUT */
-iframe{
-  flex:1;
-  border:none;
-  background:#fff;
-}
-
-/* FLOAT EXIT BUTTON */
-#exitFull{
-  position:fixed;
-  bottom:12px;
-  right:12px;
-  background:#1e293b;
-  color:#fff;
-  border:none;
-  border-radius:8px;
-  padding:10px 12px;
-  font-size:14px;
-  display:none;
-  z-index:999;
-}
-
-/* tampil saat full */
-body.full #exitFull{
-  display:block;
-}
+html, body{margin:0;padding:0;height:100dvh;display:flex;flex-direction:column;font-family:system-ui;background:#0f172a;overflow:hidden;}
+#editorWrap{flex:1; display:flex; overflow:hidden; border-bottom:1px solid #1f2937;}
+#lineNumbers{background:#020617; color:#64748b; font-family:monospace; font-size:16px; line-height:1.6; padding:10px 6px 10px 8px; text-align:right; user-select:none; border-right:1px solid #1f2937; white-space:pre;}
+#lineNumbers span.active{color:#38bdf8;}
+#lineNumbers span.error{color:#ef4444; font-weight:bold;}
+textarea{flex:1; background:#020617; color:#e2e8f0; font-family:monospace; font-size:16px; line-height:1.6; border:none; outline:none; padding:10px; resize:none; overflow:auto; caret-color:#38bdf8;}
+textarea.active-line{background-image: linear-gradient(transparent calc(var(--line) * 1.6em), rgba(56,189,248,0.15) calc(var(--line) * 1.6em), rgba(56,189,248,0.15) calc((var(--line)+1) * 1.6em), transparent calc((var(--line)+1) * 1.6em)); background-repeat:no-repeat;}
+.controls{display:flex; gap:6px; padding:6px; background:#020617;}
+button, label{flex:1; padding:10px; border:none; border-radius:6px; background:#1e293b; color:#e2e8f0; font-size:14px;}
+#exitFull{position:fixed; bottom:12px; right:12px; background:#1e293b; color:#fff; border:none; border-radius:8px; padding:10px 12px; font-size:14px; display:none; z-index:999;}
+body.full #exitFull{display:block;}
+#previewModal{display:none; position:fixed; top:0; left:0; width:100vw; height:100vh; background:rgba(0,0,0,0.5); z-index:1000; justify-content:center; align-items:center;}
+#previewModal .modalContent{position:relative; width:80%; height:80%; background:#fff; border-radius:8px; overflow:hidden; display:flex; flex-direction:column;}
+#previewModal button.closeBtn{position:absolute; top:8px; right:8px; z-index:1001; padding:6px 10px; border:none; border-radius:4px; background:#1e293b; color:#fff; font-size:14px; cursor:pointer;}
+#previewModal iframe{flex:1; border:none;}
 </style>
 </head>
-
 <body>
 
 <div id="editorWrap">
@@ -143,217 +33,102 @@ body.full #exitFull{
   <button onclick="pasteCode()">📋 Paste</button>
   <button onclick="copyCode()">📄 Copy</button>
   <button onclick="clearCode()">🗑️ Clear</button>
+  <button onclick="showPreview()">👁 Preview</button>
   <label><input type="checkbox" id="toggleLine" checked> Baris</label>
   <label><input type="checkbox" id="fullMode"> Full</label>
 </div>
 
-<iframe id="output" sandbox="allow-scripts"></iframe>
+<!-- Modal Preview -->
+<div id="previewModal">
+  <div class="modalContent">
+    <button class="closeBtn">❌ Close</button>
+    <iframe id="previewFrame"></iframe>
+  </div>
+</div>
 
-<!-- FLOAT BUTTON -->
 <button id="exitFull">⤡</button>
 
 <script>
+const STORAGE_KEY="editor_v1_code";
+const code=document.getElementById("code");
+const lines=document.getElementById("lineNumbers");
+const toggle=document.getElementById("toggleLine");
+const full=document.getElementById("fullMode");
+const exitBtn=document.getElementById("exitFull");
 
-const STORAGE_KEY = "editor_v1_code";
-const code = document.getElementById("code");
-const lines = document.getElementById("lineNumbers");
-const toggle = document.getElementById("toggleLine");
-const full = document.getElementById("fullMode");
-const output = document.getElementById("output");
-const exitBtn = document.getElementById("exitFull");
+// Preview elements
+const previewModal = document.getElementById("previewModal");
+const previewFrame = document.getElementById("previewFrame");
+const closePreviewBtn = previewModal.querySelector(".closeBtn");
 
-// VOID TAG
-const voidTags = [
-"area","base","br","col","embed","hr","img",
-"input","link","meta","source","track","wbr"
-];
+const voidTags=["area","base","br","col","embed","hr","img","input","link","meta","source","track","wbr"];
 
-// VALIDATOR
 function validateHTML(text){
-  const stack = [];
-  const errors = new Set();
-  const rows = text.split("\n");
-
-  rows.forEach((row, index)=>{
-    const tags = row.match(/<\/?[^>]+>/g) || [];
-
+  const stack=[]; const errors=new Set();
+  const rows=text.split("\n");
+  rows.forEach((row,index)=>{
+    const tags=row.match(/<\/?[^>]+>/g)||[];
     tags.forEach(tag=>{
-      const isClose = tag.startsWith("</");
-      const name = tag.replace(/<\/?|>/g,"").split(" ")[0].toLowerCase();
-
+      const isClose=tag.startsWith("</");
+      const name=tag.replace(/<\/?|>/g,"").split(" ")[0].toLowerCase();
       if(voidTags.includes(name)) return;
       if(tag.endsWith("/>")) return;
-
-      if(!isClose){
-        stack.push({name, line:index});
-      }else{
-        if(stack.length === 0 || stack[stack.length-1].name !== name){
-          errors.add(index);
-        }else{
-          stack.pop();
-        }
+      if(!isClose){stack.push({name,line:index});}else{
+        if(stack.length===0 || stack[stack.length-1].name!==name){errors.add(index);}else{stack.pop();}
       }
     });
   });
-
   stack.forEach(item=>errors.add(item.line));
   return errors;
 }
 
-// CURRENT LINE
-function getCurrentLine(){
-  return code.value.substr(0, code.selectionStart).split("\n").length - 1;
-}
+function getCurrentLine(){return code.value.substr(0, code.selectionStart).split("\n").length-1;}
 
-// LOAD DARI STORAGE
 const saved = localStorage.getItem(STORAGE_KEY);
-if(saved){
-  code.value = saved;
-  run(); // penting
-}
+if(saved){code.value=saved;}
 
-// UPDATE LINE
 function updateLines(){
-  if(!toggle.checked){
-    lines.style.display="none";
-    return;
-  }
-
+  if(!toggle.checked){lines.style.display="none"; return;}
   lines.style.display="block";
-
-  const rows = code.value.split("\n");
-  const active = getCurrentLine();
-  const errorLines = validateHTML(code.value);
-
-  let html = "";
-
-  rows.forEach((_, i)=>{
-    let cls = "";
-    if(i === active) cls += "active ";
-    if(errorLines.has(i)) cls += "error";
-    html += `<span class="${cls}">${i+1}</span>\n`;
+  const rows=code.value.split("\n");
+  const active=getCurrentLine();
+  const errorLines=validateHTML(code.value);
+  let html="";
+  rows.forEach((_,i)=>{
+    let cls="";
+    if(i===active) cls+="active ";
+    if(errorLines.has(i)) cls+="error";
+    html+=`<span class="${cls}">${i+1}</span>\n`;
   });
-
-  lines.innerHTML = html;
-  lines.scrollTop = code.scrollTop;
-
-  code.style.setProperty('--line', active);
+  lines.innerHTML=html;
+  lines.scrollTop=code.scrollTop;
+  code.style.setProperty('--line',active);
   code.classList.add('active-line');
 }
 
-// RUN
-function run(){
-  output.srcdoc = code.value;
+function run(){/* Optional live preview if needed */}
+
+// Clipboard / Clear functions
+async function pasteCode(){code.value=await navigator.clipboard.readText(); updateLines();}
+async function copyCode(){if(!code.value.trim()){alert("Kosong");return;}await navigator.clipboard.writeText(code.value);}
+function clearCode(){code.value=""; updateLines();}
+
+// === Preview functions ===
+function showPreview(){
+  const blob=new Blob([code.value],{type:"text/html"});
+  previewFrame.src=URL.createObjectURL(blob);
+  previewModal.style.display="flex";
 }
 
-// DEBOUNCE
-function debounce(fn,ms){
-  let t;
-  return (...a)=>{
-    clearTimeout(t);
-    t=setTimeout(()=>fn(...a),ms);
-  }
-}
-
-let saveTimer;
-
-const live = debounce(()=>{
-  updateLines();
-  run();
-
-  localStorage.setItem(STORAGE_KEY, code.value);
-
-  // indikator save lebih smooth
-  document.title = "💾 Menyimpan...";
-  clearTimeout(saveTimer);
-  saveTimer = setTimeout(()=>{
-    document.title = "✔ Tersimpan";
-    setTimeout(()=>document.title="Editor V1.4.1", 800);
-  },300);
-
-},150);
-
-code.addEventListener("input", live);
-code.addEventListener("click", updateLines);
-code.addEventListener("keyup", updateLines);
-
-code.addEventListener("scroll", ()=>{
-  lines.scrollTop = code.scrollTop;
+// Close Preview
+closePreviewBtn.addEventListener("click", ()=>{
+  previewModal.style.display="none";
+  previewFrame.src = "";
 });
 
-// FULL MODE
-full.addEventListener("change", ()=>{
-  document.body.classList.toggle("full", full.checked);
-});
-
-// EXIT FULL BUTTON
-exitBtn.onclick = ()=>{
-  full.checked = false;
-  document.body.classList.remove("full");
-};
-
-// ACTION
-async function pasteCode(){
-  code.value = await navigator.clipboard.readText();
-  // langsung save
-  localStorage.setItem(STORAGE_KEY, code.value);
-  updateLines();
-  run();
-}
-
-function showToast(msg){
-  const t = document.createElement("div");
-  t.textContent = msg;
-  t.style.position = "fixed";
-  t.style.bottom = "20px";
-  t.style.left = "50%";
-  t.style.transform = "translateX(-50%)";
-  t.style.background = "#1e293b";
-  t.style.color = "#fff";
-  t.style.padding = "8px 12px";
-  t.style.borderRadius = "6px";
-  t.style.zIndex = "9999";
-  document.body.appendChild(t);
-
-  setTimeout(()=>t.remove(),1500);
-}
-
-async function copyCode(){
-  if(!code.value.trim()){
-    showToast("⚠️ Kosong");
-    return;
-  }
-
-  try{
-    await navigator.clipboard.writeText(code.value);
-    showToast("✅ Copied");
-  }catch{
-    showToast("❌ Gagal copy");
-  }
-}
-
-function clearCode(){
-  code.value="";
-  output.srcdoc="";
-  // HAPUS STORAGE
-localStorage.removeItem(STORAGE_KEY);
-  updateLines();
-}
-toggle.addEventListener("change", updateLines);
-
+// Initial setup
 updateLines();
-// jalankan hanya jika tidak ada saved
-if(!saved){
-  run();
-}
-
 code.focus();
-
-window.addEventListener("beforeunload", ()=>{
-  localStorage.setItem(STORAGE_KEY, code.value);
-});
-
 </script>
-
 </body>
 </html>
