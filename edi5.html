@@ -138,12 +138,54 @@ body.full #exitFull{
   <textarea id="code" placeholder="Tulis kode di sini..."></textarea>
 </div>
 
+<!-- Tambahkan tombol Preview di controls -->
 <div class="controls">
   <button onclick="pasteCode()">📋 Paste</button>
   <button onclick="copyCode()">📄 Copy</button>
   <button onclick="clearCode()">🗑️ Clear</button>
+  <button onclick="showPreview()">👁 Preview</button>
   <label><input type="checkbox" id="toggleLine" checked> Baris</label>
   <label><input type="checkbox" id="fullMode"> Full</label>
+</div>
+
+<!-- Modal Preview -->
+<div id="previewModal" style="
+  display:none;
+  position:fixed;
+  top:0;
+  left:0;
+  width:100vw;
+  height:100vh;
+  background:rgba(0,0,0,0.5);
+  z-index:1000;
+  justify-content:center;
+  align-items:center;
+">
+  <div style="
+    position:relative;
+    width:80%;
+    height:80%;
+    background:#fff;
+    border-radius:8px;
+    overflow:hidden;
+    display:flex;
+    flex-direction:column;
+  ">
+    <button id="closePreview" style="
+      position:absolute;
+      top:8px;
+      right:8px;
+      z-index:1001;
+      padding:6px 10px;
+      border:none;
+      border-radius:4px;
+      background:#1e293b;
+      color:#fff;
+      font-size:14px;
+      cursor:pointer;
+    ">❌ Close</button>
+    <iframe id="previewFrame" sandbox="allow-scripts" style="flex:1; border:none;"></iframe>
+  </div>
 </div>
 
 <iframe id="output" sandbox="allow-scripts"></iframe>
@@ -351,6 +393,19 @@ code.focus();
 window.addEventListener("beforeunload", ()=>{
   localStorage.setItem(STORAGE_KEY, code.value);
 });
+
+const previewModal = document.getElementById("previewModal");
+const previewFrame = document.getElementById("previewFrame");
+const closePreviewBtn = document.getElementById("closePreview");
+
+function showPreview(){
+  previewFrame.srcdoc = code.value;
+  previewModal.style.display = "flex";
+}
+
+closePreviewBtn.onclick = ()=>{
+  previewModal.style.display = "none";
+};
 
 </script>
 
