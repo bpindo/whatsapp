@@ -123,6 +123,32 @@ iframe{
   display:none;
   z-index:999;
 }
+button.active{
+  background:#38bdf8;
+  color:#000;
+}
+
+/* FULL INPUT */
+body.full-input #output,
+body.full-input .controls{
+  display:none;
+}
+
+/* FULL OUTPUT */
+body.full-output #editorWrap,
+body.full-output .controls{
+  display:none;
+}
+
+/* FLOAT EXIT BUTTON bisa tetap untuk exit full */
+#exitFull{
+  display:none; /* default hidden */
+}
+
+body.full-input #exitFull,
+body.full-output #exitFull{
+  display:block;
+}
 
 /* tampil saat full */
 body.full #exitFull{
@@ -143,8 +169,12 @@ body.full #exitFull{
   <button onclick="copyCode()">📄 Copy</button>
   <button onclick="clearCode()">🗑️ Clear</button>
   <label><input type="checkbox" id="toggleLine" checked> Baris</label>
-  <label><input type="checkbox" id="fullMode"> Full</label>
+  
+  <!-- Hapus checkbox fullMode -->
+  <button id="fullInputBtn">🔹 Full Input</button>
+  <button id="fullOutputBtn">🔹 Full Output</button>
 </div>
+
 
 <iframe id="output" sandbox="allow-scripts"></iframe>
 
@@ -273,16 +303,8 @@ code.addEventListener("scroll", ()=>{
   lines.scrollTop = code.scrollTop;
 });
 
-// FULL MODE
-full.addEventListener("change", ()=>{
-  document.body.classList.toggle("full", full.checked);
-});
 
 // EXIT FULL BUTTON
-exitBtn.onclick = ()=>{
-  full.checked = false;
-  document.body.classList.remove("full");
-};
 
 // ACTION
 async function pasteCode(){
@@ -323,6 +345,45 @@ async function copyCode(){
     showToast("❌ Gagal copy");
   }
 }
+
+const fullInputBtn = document.getElementById("fullInputBtn");
+const fullOutputBtn = document.getElementById("fullOutputBtn");
+
+// STATE
+let isFullInput = false;
+let isFullOutput = false;
+
+// Full Input
+
+// Full Output
+
+// Exit button
+exitBtn.onclick = () => {
+  isFullInput = false;
+  isFullOutput = false;
+  document.body.classList.remove("full-input", "full-output");
+};
+
+fullInputBtn.onclick = () => {
+  isFullInput = !isFullInput;
+  isFullOutput = false;
+  document.body.classList.toggle("full-input", isFullInput);
+  document.body.classList.remove("full-output");
+
+  fullInputBtn.classList.toggle("active", isFullInput);
+  fullOutputBtn.classList.remove("active");
+};
+
+fullOutputBtn.onclick = () => {
+  isFullOutput = !isFullOutput;
+  isFullInput = false;
+  document.body.classList.toggle("full-output", isFullOutput);
+  document.body.classList.remove("full-input");
+
+  fullOutputBtn.classList.toggle("active", isFullOutput);
+  fullInputBtn.classList.remove("active");
+};
+
 
 function clearCode(){
   code.value="";
