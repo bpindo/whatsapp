@@ -151,6 +151,8 @@ body.full #exitFull{
 <button id="exitFull">⤡</button>
 
 <script>
+
+const STORAGE_KEY = "editor_v1_code";
 const code = document.getElementById("code");
 const lines = document.getElementById("lineNumbers");
 const toggle = document.getElementById("toggleLine");
@@ -201,6 +203,13 @@ function getCurrentLine(){
   return code.value.substr(0, code.selectionStart).split("\n").length - 1;
 }
 
+// LOAD DARI STORAGE
+const saved = localStorage.getItem(STORAGE_KEY);
+if(saved){
+  code.value = saved;
+}
+
+
 // UPDATE LINE
 function updateLines(){
   if(!toggle.checked){
@@ -247,6 +256,9 @@ function debounce(fn,ms){
 const live = debounce(()=>{
   updateLines();
   run();
+
+  // SAVE KE LOCALSTORAGE
+  localStorage.setItem(STORAGE_KEY, code.value);
 },150);
 
 code.addEventListener("input", live);
@@ -278,11 +290,11 @@ async function pasteCode(){
 function clearCode(){
   code.value="";
   output.srcdoc="";
+  // HAPUS STORAGE
+localStorage.removeItem(STORAGE_KEY);
   updateLines();
 }
-
 toggle.addEventListener("change", updateLines);
-
 updateLines();
 run();
 </script>
