@@ -1,0 +1,291 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+<meta charset="UTF-8">
+
+<!-- ANTI ZOOM -->
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no">
+
+<title>Editor V1.4.1</title>
+
+<style>
+html, body{
+  margin:0;
+  padding:0;
+  height:100dvh;
+  display:flex;
+  flex-direction:column;
+  font-family:system-ui;
+  background:#0f172a;
+  overflow:hidden;
+}
+
+/* FULL MODE */
+body.full #output,
+body.full .controls{
+  display:none;
+}
+
+/* WRAPPER */
+#editorWrap{
+  flex:1;
+  display:flex;
+  overflow:hidden;
+  border-bottom:1px solid #1f2937;
+}
+
+/* LINE NUMBER */
+#lineNumbers{
+  background:#020617;
+  color:#64748b;
+  font-family:monospace;
+  font-size:16px;
+  line-height:1.6;
+  padding:10px 6px 10px 8px;
+  text-align:right;
+  user-select:none;
+  border-right:1px solid #1f2937;
+  white-space:pre;
+}
+
+#lineNumbers span.active{
+  color:#38bdf8;
+}
+
+#lineNumbers span.error{
+  color:#ef4444;
+  font-weight:bold;
+}
+
+/* TEXTAREA */
+textarea{
+  flex:1;
+  background:#020617;
+  color:#e2e8f0;
+  font-family:monospace;
+  font-size:16px;
+  line-height:1.6;
+  border:none;
+  outline:none;
+  padding:10px;
+  resize:none;
+  overflow:auto;
+  caret-color:#38bdf8;
+}
+
+/* ACTIVE LINE */
+textarea.active-line{
+  background-image: linear-gradient(
+    transparent calc(var(--line) * 1.6em),
+    rgba(56,189,248,0.15) calc(var(--line) * 1.6em),
+    rgba(56,189,248,0.15) calc((var(--line)+1) * 1.6em),
+    transparent calc((var(--line)+1) * 1.6em)
+  );
+  background-repeat:no-repeat;
+}
+
+/* CONTROLS */
+.controls{
+  display:flex;
+  gap:6px;
+  padding:6px;
+  background:#020617;
+}
+
+button, label{
+  flex:1;
+  padding:10px;
+  border:none;
+  border-radius:6px;
+  background:#1e293b;
+  color:#e2e8f0;
+  font-size:14px;
+}
+
+/* OUTPUT */
+iframe{
+  flex:1;
+  border:none;
+  background:#fff;
+}
+
+/* FLOAT EXIT BUTTON */
+#exitFull{
+  position:fixed;
+  bottom:12px;
+  right:12px;
+  background:#1e293b;
+  color:#fff;
+  border:none;
+  border-radius:8px;
+  padding:10px 12px;
+  font-size:14px;
+  display:none;
+  z-index:999;
+}
+
+/* tampil saat full */
+body.full #exitFull{
+  display:block;
+}
+</style>
+</head>
+
+<body>
+
+<div id="editorWrap">
+  <div id="lineNumbers"></div>
+  <textarea id="code" placeholder="Tulis kode di sini..."></textarea>
+</div>
+
+<div class="controls">
+  <button onclick="pasteCode()">📋 Paste</button>
+  <button onclick="clearCode()">🗑️ Clear</button>
+  <label><input type="checkbox" id="toggleLine" checked> Baris</label>
+  <label><input type="checkbox" id="fullMode"> Full</label>
+</div>
+
+<iframe id="output" sandbox="allow-scripts"></iframe>
+
+<!-- FLOAT BUTTON -->
+<button id="exitFull">⤡</button>
+
+<script>
+const code = document.getElementById("code");
+const lines = document.getElementById("lineNumbers");
+const toggle = document.getElementById("toggleLine");
+const full = document.getElementById("fullMode");
+const output = document.getElementById("output");
+const exitBtn = document.getElementById("exitFull");
+
+// VOID TAG
+const voidTags = [
+"area","base","br","col","embed","hr","img",
+"input","link","meta","source","track","wbr"
+];
+
+// VALIDATOR
+function validateHTML(text){
+  const stack = [];
+  const errors = new Set();
+  const rows = text.split("\n");
+
+  rows.forEach((row, index)=>{
+    const tags = row.match(/<\/?[^>]+>/g) || [];
+
+    tags.forEach(tag=>{
+      const isClose = tag.startsWith("</");
+      const name = tag.replace(/<\/?|>/g,"").split(" ")[0].toLowerCase();
+
+      if(voidTags.includes(name)) return;
+      if(tag.endsWith("/>")) return;
+
+      if(!isClose){
+        stack.push({name, line:index});
+      }else{
+        if(stack.length === 0 || stack[stack.length-1].name !== name){
+          errors.add(index);
+        }else{
+          stack.pop();
+        }
+      }
+    });
+  });
+
+  stack.forEach(item=>errors.add(item.line));
+  return errors;
+}
+
+// CURRENT LINE
+function getCurrentLine(){
+  return code.value.substr(0, code.selectionStart).split("\n").length - 1;
+}
+
+// UPDATE LINE
+function updateLines(){
+  if(!toggle.checked){
+    lines.style.display="none";
+    return;
+  }
+
+  lines.style.display="block";
+
+  const rows = code.value.split("\n");
+  const active = getCurrentLine();
+  const errorLines = validateHTML(code.value);
+
+  let html = "";
+
+  rows.forEach((_, i)=>{
+    let cls = "";
+    if(i === active) cls += "active ";
+    if(errorLines.has(i)) cls += "error";
+    html += `<span class="${cls}">${i+1}</span>\n`;
+  });
+
+  lines.innerHTML = html;
+  lines.scrollTop = code.scrollTop;
+
+  code.style.setProperty('--line', active);
+  code.classList.add('active-line');
+}
+
+// RUN
+function run(){
+  output.srcdoc = code.value;
+}
+
+// DEBOUNCE
+function debounce(fn,ms){
+  let t;
+  return (...a)=>{
+    clearTimeout(t);
+    t=setTimeout(()=>fn(...a),ms);
+  }
+}
+
+const live = debounce(()=>{
+  updateLines();
+  run();
+},150);
+
+code.addEventListener("input", live);
+code.addEventListener("click", updateLines);
+code.addEventListener("keyup", updateLines);
+
+code.addEventListener("scroll", ()=>{
+  lines.scrollTop = code.scrollTop;
+});
+
+// FULL MODE
+full.addEventListener("change", ()=>{
+  document.body.classList.toggle("full", full.checked);
+});
+
+// EXIT FULL BUTTON
+exitBtn.onclick = ()=>{
+  full.checked = false;
+  document.body.classList.remove("full");
+};
+
+// ACTION
+async function pasteCode(){
+  code.value = await navigator.clipboard.readText();
+  updateLines();
+  run();
+}
+
+function clearCode(){
+  code.value="";
+  output.srcdoc="";
+  updateLines();
+}
+
+toggle.addEventListener("change", updateLines);
+
+updateLines();
+run();
+</script>
+
+</body>
+</html>
