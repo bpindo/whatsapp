@@ -208,8 +208,8 @@ function getCurrentLine(){
 const saved = localStorage.getItem(STORAGE_KEY);
 if(saved){
   code.value = saved;
+  run(); // penting
 }
-
 
 // UPDATE LINE
 function updateLines(){
@@ -254,12 +254,22 @@ function debounce(fn,ms){
   }
 }
 
+let saveTimer;
+
 const live = debounce(()=>{
   updateLines();
   run();
 
-  // SAVE KE LOCALSTORAGE
   localStorage.setItem(STORAGE_KEY, code.value);
+
+  // indikator save lebih smooth
+  document.title = "💾 Menyimpan...";
+  clearTimeout(saveTimer);
+  saveTimer = setTimeout(()=>{
+    document.title = "✔ Tersimpan";
+    setTimeout(()=>document.title="Editor V1.4.1", 800);
+  },300);
+
 },150);
 
 code.addEventListener("input", live);
@@ -284,6 +294,8 @@ exitBtn.onclick = ()=>{
 // ACTION
 async function pasteCode(){
   code.value = await navigator.clipboard.readText();
+  // langsung save
+  localStorage.setItem(STORAGE_KEY, code.value);
   updateLines();
   run();
 }
@@ -306,6 +318,11 @@ function showToast(msg){
 }
 
 async function copyCode(){
+  if(!code.value.trim()){
+    showToast("⚠️ Kosong");
+    return;
+  }
+
   try{
     await navigator.clipboard.writeText(code.value);
     showToast("✅ Copied");
@@ -322,8 +339,19 @@ localStorage.removeItem(STORAGE_KEY);
   updateLines();
 }
 toggle.addEventListener("change", updateLines);
+
 updateLines();
-run();
+// jalankan hanya jika tidak ada saved
+if(!saved){
+  run();
+}
+
+code.focus();
+
+window.addEventListener("beforeunload", ()=>{
+  localStorage.setItem(STORAGE_KEY, code.value);
+});
+
 </script>
 
 </body>
