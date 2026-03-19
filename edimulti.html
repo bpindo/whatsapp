@@ -1,0 +1,277 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>HTML Editor Pro v5 (Fixed)</title>
+    <style>
+        body, html { margin:0; padding:0; font-family:system-ui,sans-serif; height:100%; display:flex; flex-direction:column; background:#f4f4f9; }
+        #editorContainer{ padding:15px; background:#fff; border-bottom:1px solid #ddd; box-shadow: 0 2px 5px rgba(0,0,0,0.1); z-index: 10; }
+        textarea{ width:100%; min-height:150px; font-family:'Cascadia Code', monospace; font-size:14px; padding:10px; box-sizing:border-box; border:1px solid #ccc; border-radius:5px; resize:vertical; margin-top:5px; outline:none; }
+        textarea:focus { border-color: #007bff; }
+        .button-row{ display:flex; flex-wrap:wrap; gap:8px; margin-top:10px; }
+        button{ flex:1 1 auto; padding:10px; font-size:14px; cursor:pointer; min-width:80px; border-radius:5px; border:1px solid #bbb; background: #fff; transition: 0.2s; }
+        button:hover { background: #eee; }
+        .btn-primary { background: #007bff; color: white; border: none; }
+        .btn-danger { background: #dc3545; color: white; border: none; }
+        select, label { margin-top:10px; font-size:14px; display: block; width: 100%; }
+        select { padding:8px; border-radius:5px; border:1px solid #ccc; }
+        #output{ flex-grow:1; width:100%; border:none; background: white; }
+        .notif{ position:fixed; top:20px; left:50%; transform:translateX(-50%); background:rgba(0,0,0,0.8); color:white; padding:8px 20px; border-radius:20px; z-index:9999; display:none; }
+        .section-label { font-weight: bold; margin-top: 15px; color: #555; font-size: 12px; text-transform: uppercase; }
+    </style>
+</head>
+<body>
+
+<div id="editorContainer">
+    <button onclick="toggleEditor()" style="width:100%; margin-bottom: 5px;">🔽 Toggle Editor</button>
+
+    <div id="inputArea">
+        <textarea id="codeInput" placeholder="Tulis kode HTML/CSS/JS di sini..."></textarea>
+        
+        <div class="button-row">
+            <button onclick="runCode()" class="btn-primary">▶️ RUN</button>
+            <button onclick="pasteCode()">📋 Paste</button>
+            <button onclick="copyCode()">✂️ Copy</button>
+            <button onclick="clearCode()">🗑️ Clear</button>
+        </div>
+
+        <div class="section-label">Workspace / Namespace</div>
+        <select id="namespaceSelect" onchange="changeNamespace()"></select>
+        <div class="button-row">
+            <button onclick="addNamespace()">➕ New NS</button>
+            <button onclick="renameNamespace()">✏️ Rename NS</button>
+            <button onclick="deleteNamespace()" class="btn-danger">❌ Delete NS</button>
+        </div>
+
+        <div class="section-label">Project Management</div>
+        <div class="button-row">
+            <button onclick="saveProject()">💾 Quick Save</button>
+            <button onclick="saveAsProject()">💾 Save As...</button>
+        </div>
+        
+        <select id="projectSelect" onchange="loadSelectedProject()">
+            <option value="">-- Pilih Proyek --</option>
+        </select>
+        <div class="button-row">
+            <button onclick="renameProject()">✏️ Rename Proj</button>
+            <button onclick="deleteProject()" class="btn-danger">❌ Delete Proj</button>
+        </div>
+    </div>
+</div>
+
+<iframe id="output"></iframe>
+<div id="notif" class="notif"></div>
+
+<script>
+let CURRENT_NAMESPACE = "";
+const NS_LIST_KEY = "cfg_namespaces";
+const ACTIVE_NS_KEY = "cfg_active_ns";
+
+// --- Notifications ---
+function showNotif(msg) {
+    const n = document.getElementById("notif");
+    n.innerText = msg;
+    n.style.display = "block";
+    setTimeout(() => { n.style.display = "none"; }, 1500);
+}
+
+// --- Initialization ---
+function init() {
+    let namespaces = JSON.parse(localStorage.getItem(NS_LIST_KEY)) || [];
+    if (namespaces.length === 0) {
+        namespaces = ["Main_"];
+        localStorage.setItem(NS_LIST_KEY, JSON.stringify(namespaces));
+    }
+
+    CURRENT_NAMESPACE = localStorage.getItem(ACTIVE_NS_KEY) || namespaces[0];
+    if (!namespaces.includes(CURRENT_NAMESPACE)) CURRENT_NAMESPACE = namespaces[0];
+
+    renderNamespaceList();
+    updateProjectList();
+}
+
+// --- Namespace Logic ---
+function renderNamespaceList() {
+    const select = document.getElementById("namespaceSelect");
+    select.innerHTML = "";
+    const namespaces = JSON.parse(localStorage.getItem(NS_LIST_KEY)) || [];
+    namespaces.forEach(ns => {
+        const opt = document.createElement("option");
+        opt.value = ns;
+        opt.textContent = ns.replace(/_$/, '');
+        if (ns === CURRENT_NAMESPACE) opt.selected = true;
+        select.appendChild(opt);
+    });
+}
+
+function changeNamespace() {
+    CURRENT_NAMESPACE = document.getElementById("namespaceSelect").value;
+    localStorage.setItem(ACTIVE_NS_KEY, CURRENT_NAMESPACE);
+    updateProjectList();
+    showNotif("Pindah ke Namespace: " + CURRENT_NAMESPACE.replace('_',''));
+}
+
+function addNamespace() {
+    let name = prompt("Masukkan nama Namespace baru:");
+    if (!name) return;
+    name = name.trim().replace(/[^a-zA-Z0-9]/g, '') + "_";
+    
+    let namespaces = JSON.parse(localStorage.getItem(NS_LIST_KEY)) || [];
+    if (namespaces.includes(name)) return showNotif("Namespace sudah ada!");
+
+    namespaces.push(name);
+    localStorage.setItem(NS_LIST_KEY, JSON.stringify(namespaces));
+    CURRENT_NAMESPACE = name;
+    localStorage.setItem(ACTIVE_NS_KEY, name);
+    
+    renderNamespaceList();
+    updateProjectList();
+    showNotif("Namespace Dibuat");
+}
+
+function deleteNamespace() {
+    let namespaces = JSON.parse(localStorage.getItem(NS_LIST_KEY)) || [];
+    if (namespaces.length <= 1) return showNotif("Minimal harus ada 1 Namespace");
+
+    if (confirm(`Hapus Namespace "${CURRENT_NAMESPACE}" beserta isinya?`)) {
+        Object.keys(localStorage).forEach(key => {
+            if (key.startsWith(CURRENT_NAMESPACE)) localStorage.removeItem(key);
+        });
+
+        namespaces = namespaces.filter(n => n !== CURRENT_NAMESPACE);
+        localStorage.setItem(NS_LIST_KEY, JSON.stringify(namespaces));
+        CURRENT_NAMESPACE = namespaces[0];
+        localStorage.setItem(ACTIVE_NS_KEY, CURRENT_NAMESPACE);
+
+        renderNamespaceList();
+        updateProjectList();
+        showNotif("Namespace Terhapus");
+    }
+}
+
+// --- Project Logic ---
+function updateProjectList() {
+    const select = document.getElementById('projectSelect');
+    select.innerHTML = '<option value="">-- Pilih Proyek --</option>';
+    
+    Object.keys(localStorage)
+        .filter(k => k.startsWith(CURRENT_NAMESPACE))
+        .sort()
+        .forEach(k => {
+            const opt = document.createElement('option');
+            opt.value = k;
+            opt.textContent = k.replace(CURRENT_NAMESPACE, '');
+            select.appendChild(opt);
+        });
+}
+
+function saveProject() {
+    const code = document.getElementById('codeInput').value;
+    if (!code.trim()) return showNotif("Kode kosong");
+
+    const projectName = prompt("Simpan sebagai nama proyek:", "Project1");
+    if (!projectName) return;
+
+    const fullKey = CURRENT_NAMESPACE + projectName.trim();
+    localStorage.setItem(fullKey, code);
+    updateProjectList();
+    document.getElementById('projectSelect').value = fullKey;
+    showNotif("Tersimpan!");
+}
+
+function saveAsProject() { saveProject(); }
+
+function loadSelectedProject() {
+    const key = document.getElementById('projectSelect').value;
+    if (!key) return;
+    document.getElementById('codeInput').value = localStorage.getItem(key);
+    runCode();
+    showNotif("Project Dimuat");
+}
+
+function deleteProject() {
+    const key = document.getElementById('projectSelect').value;
+    if (!key) return showNotif("Pilih proyek dulu");
+    if (confirm("Hapus proyek ini?")) {
+        localStorage.removeItem(key);
+        updateProjectList();
+        clearCode();
+        showNotif("Terhapus");
+    }
+}
+
+function renameProject() {
+    const oldKey = document.getElementById('projectSelect').value;
+    if (!oldKey) return showNotif("Pilih proyek dulu");
+    
+    const newName = prompt("Nama baru:", oldKey.replace(CURRENT_NAMESPACE, ''));
+    if (!newName) return;
+    
+    const newKey = CURRENT_NAMESPACE + newName.trim();
+    localStorage.setItem(newKey, localStorage.getItem(oldKey));
+    localStorage.removeItem(oldKey);
+    updateProjectList();
+    document.getElementById('projectSelect').value = newKey;
+    showNotif("Nama diganti");
+}
+
+// --- Editor Actions ---
+function runCode() {
+    const code = document.getElementById('codeInput').value;
+    const output = document.getElementById('output');
+    output.srcdoc = code;
+}
+
+function clearCode() {
+    document.getElementById('codeInput').value = '';
+    document.getElementById('output').srcdoc = '';
+}
+
+async function copyCode() {
+    await navigator.clipboard.writeText(document.getElementById('codeInput').value);
+    showNotif("Disalin ke Clipboard");
+}
+
+async function pasteCode() {
+    const text = await navigator.clipboard.readText();
+    document.getElementById('codeInput').value = text;
+    showNotif("Berhasil Paste");
+}
+
+function toggleEditor() {
+    const area = document.getElementById('inputArea');
+    area.style.display = (area.style.display === 'none') ? 'block' : 'none';
+}
+
+function renameNamespace() {
+    let namespaces = JSON.parse(localStorage.getItem(NS_LIST_KEY)) || [];
+    const oldNs = CURRENT_NAMESPACE;
+    let newName = prompt("Nama Namespace Baru:", oldNs.replace('_',''));
+    
+    if(!newName) return;
+    const newNs = newName.trim().replace(/[^a-zA-Z0-9]/g, '') + "_";
+
+    // Migrasi data
+    Object.keys(localStorage).forEach(key => {
+        if(key.startsWith(oldNs)) {
+            localStorage.setItem(key.replace(oldNs, newNs), localStorage.getItem(key));
+            localStorage.removeItem(key);
+        }
+    });
+
+    namespaces = namespaces.map(n => n === oldNs ? newNs : n);
+    localStorage.setItem(NS_LIST_KEY, JSON.stringify(namespaces));
+    CURRENT_NAMESPACE = newNs;
+    localStorage.setItem(ACTIVE_NS_KEY, newNs);
+
+    renderNamespaceList();
+    updateProjectList();
+    showNotif("Namespace di-rename");
+}
+
+// --- Start ---
+init();
+</script>
+</body>
+</html>
