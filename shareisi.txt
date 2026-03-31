@@ -1,0 +1,22 @@
+<!DOCTYPE html>
+<html lang="id">
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Hive URL Feed</title>
+<style>body{font-family:system-ui;background:#f2f4f8;margin:0;padding:20px}main{max-width:640px;margin:auto}a{display:block;margin-bottom:6px;color:#2563eb;word-break:break-all}</style>
+<main><h1>Hive URL Feed</h1><div id="c"></div></main>
+<script>
+(async()=>{
+let a="",p="",n=0,h="";
+while(n<10){
+try{
+const r=await fetch("https://api.hive.blog",{method:"POST",body:JSON.stringify({jsonrpc:"2.0",method:"condenser_api.get_discussions_by_created",params:[{limit:10,start_author:a,start_permlink:p}],id:1})});
+const d=await r.json();
+for(const x of d.result)if(parseFloat(x.pending_payout_value)>0.05){const u=`https://hive.blog/${x.category}/@${x.author}/${x.permlink}`;h+=`<a href="${u}" target="_blank">${u}</a>`;if(++n>=15)break}
+a=d.result.at(-1)?.author||"";p=d.result.at(-1)?.permlink||"";
+}catch{h="Gagal mengambil data";break}
+}
+document.getElementById("c").innerHTML=h;
+})();
+</script>
+</html>
