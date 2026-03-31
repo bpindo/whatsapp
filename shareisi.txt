@@ -20,3 +20,1319 @@ document.getElementById("c").innerHTML=h;
 })();
 </script>
 </html>
+
+ganti
+
+<!DOCTYPE html>
+<html lang="id">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Hive WAIV Hunter Ultra-Compact</title>
+<style>
+    :root { --primary: #2563eb; --danger: #ef4444; --success: #16a34a; --bg: #f8fafc; --waiv: #3b82f6; }
+    body { margin:0; font-family: system-ui, -apple-system, sans-serif; background: var(--bg); color: #1e293b; }
+    
+    .tabs { display:flex; position:sticky; top:0; background:#fff; z-index:10; box-shadow: 0 1px 3px rgba(0,0,0,0.1); }
+    .tab { flex:1; padding:15px; text-align:center; font-weight:700; cursor:pointer; border-bottom:3px solid transparent; font-size: 13px; color: #64748b; }
+    .tab.active { border-bottom:3px solid var(--primary); color: var(--primary); }
+    
+    .page { display:none; padding:15px; }
+    .page.active { display:block; }
+    
+    .card-main { background: #fff; padding:20px; border-radius:14px; text-align:center; box-shadow:0 4px 12px rgba(0,0,0,.05); }
+    #counter { font-size:24px; font-weight:800; color: var(--waiv); margin-bottom:5px; }
+    #progress { font-size:12px; color:#64748b; margin-bottom:15px; font-weight: bold; }
+    
+    .btn-main { width:100%; padding:14px; border:none; border-radius:10px; font-weight:700; font-size:14px; cursor:pointer; color:#fff; }
+    .btn-start { background: var(--success); }
+    .btn-stop { background: var(--danger); }
+    
+    /* Layout Satu Baris Paksa */
+    .item { 
+        background: #fff; 
+        padding: 10px 12px; 
+        margin-bottom: 6px; 
+        border-radius: 8px; 
+        border: 1px solid #e2e8f0; 
+        display: flex; 
+        align-items: center; 
+        justify-content: space-between; 
+        gap: 10px; 
+        overflow: hidden;
+    }
+    
+    /* URL Mengalah (Truncate) */
+    .url-wrapper {
+        flex: 1; /* Ambil sisa ruang */
+        min-width: 0; /* Penting agar truncate bekerja di flexbox */
+    }
+    .item a.main-link { 
+        color: #1e40af; 
+        font-weight: 600; 
+        text-decoration: none; 
+        font-size: 12px; 
+        white-space: nowrap; 
+        overflow: hidden; 
+        text-overflow: ellipsis; 
+        display: block;
+    }
+    
+    /* Badge Paksa di Kanan */
+    .badge-row { 
+        display: flex; 
+        gap: 4px; 
+        flex-shrink: 0; /* Jangan biarkan mengecil atau turun baris */
+    }
+    .badge { 
+        padding: 2px 6px; 
+        border-radius: 4px; 
+        font-size: 10px; 
+        font-weight: bold; 
+        white-space: nowrap;
+    }
+    .badge-age { background:#f1f5f9; color:#475569; border: 1px solid #cbd5e1; }
+    .badge-payout { background:#dcfce7; color:#15803d; border: 1px solid #bbf7d0; }
+    
+    .empty { text-align:center; padding:40px; color:#94a3b8; font-size:13px; }
+</style>
+</head>
+<body>
+
+<div class="tabs">
+    <div class="tab active" onclick="switchTab(0)">⚡ Hunter</div>
+    <div class="tab" id="historyTab" onclick="switchTab(1)">📜 Riwayat (0)</div>
+</div>
+
+<div class="page active">
+    <div class="card-main">
+        <div id="counter">Post WAIV: 0</div>
+        <div id="progress">Filter: $0.07 - $1.50</div>
+        <button id="autoBtn" class="btn-main btn-start" onclick="toggleAuto()">▶ START HUNTER</button>
+    </div>
+</div>
+
+<div class="page">
+    <div style="display: flex; gap: 6px; margin-bottom: 12px;">
+        <button class="btn-main" style="background:var(--primary); flex: 2;" onclick="copyAllHistory()">📋 Copy URL</button>
+        <button class="btn-main" style="background:var(--danger); flex: 1;" onclick="clearHistory()">🗑️ Hapus</button>
+    </div>
+    <div id="historyEmpty" class="empty">Kosong...</div>
+    <div id="historyContainer"></div>
+</div>
+
+<script>
+let sa = "", sp = "", auto = false, loading = false, totalScanned = 0;
+const scannedSet = new Set();
+let historyData = JSON.parse(localStorage.getItem("hive_waiv_ultra_store")) || [];
+
+function switchTab(i) {
+    document.querySelectorAll(".tab").forEach((t, idx) => t.classList.toggle("active", idx === i));
+    document.querySelectorAll(".page").forEach((p, idx) => p.classList.toggle("active", idx === i));
+}
+
+async function processBatch() {
+    if (!auto || loading) return;
+    loading = true;
+    try {
+        const query = { limit: 20, tag: "waiv" };
+        if (sa) { query.start_author = sa; query.start_permlink = sp; }
+        const r = await fetch("https://api.hive.blog", {
+            method: "POST",
+            body: JSON.stringify({ jsonrpc: "2.0", method: "condenser_api.get_discussions_by_created", params: [query], id: 1 })
+        });
+        const j = await r.json();
+        const posts = j.result || [];
+        totalScanned += posts.length;
+        document.getElementById("counter").textContent = "Scan: " + totalScanned;
+        posts.forEach(x => {
+            const url = `https://hive.blog/@${x.author}/${x.permlink}`;
+            if (!scannedSet.has(url)) {
+                scannedSet.add(url);
+                const payoutValue = parseFloat(x.pending_payout_value.split(" ")[0]);
+                if (payoutValue >= 0.07 && payoutValue <= 1.50) {
+                    const created = new Date(x.created + 'Z');
+                    const diffDays = ((new Date() - created) / (1000 * 60 * 60 * 24)).toFixed(2);
+                    if (!historyData.some(item => item.url === url)) {
+                        historyData.unshift({ url, days: diffDays, payout: x.pending_payout_value });
+                    }
+                }
+            }
+        });
+        if (posts.length) {
+            sa = posts[posts.length - 1].author;
+            sp = posts[posts.length - 1].permlink;
+            localStorage.setItem("hive_waiv_ultra_store", JSON.stringify(historyData));
+            updateHistoryUI();
+        }
+    } catch (e) {}
+    loading = false;
+    document.getElementById("progress").textContent = `Terjaring: ${historyData.length}`;
+    if (auto) setTimeout(processBatch, 1500);
+}
+
+function updateHistoryUI() {
+    const container = document.getElementById("historyContainer");
+    const tabLabel = document.getElementById("historyTab");
+    const emptyMsg = document.getElementById("historyEmpty");
+    container.innerHTML = "";
+    tabLabel.textContent = `📜 (${historyData.length})`;
+    emptyMsg.style.display = historyData.length ? "none" : "block";
+
+    historyData.forEach((item) => {
+        const div = document.createElement("div");
+        div.className = "item";
+        div.innerHTML = `
+            <div class="url-wrapper">
+                <a href="${item.url}" target="_blank" class="main-link">${item.url}</a>
+            </div>
+            <div class="badge-row">
+                <span class="badge badge-age">${item.days}d</span>
+                <span class="badge badge-payout">${item.payout.split(" ")[0]}</span>
+            </div>`;
+        container.appendChild(div);
+    });
+}
+
+function clearHistory() {
+    if (confirm("Hapus semua?")) {
+        historyData = [];
+        localStorage.setItem("hive_waiv_ultra_store", JSON.stringify(historyData));
+        updateHistoryUI();
+    }
+}
+
+function copyAllHistory() {
+    if (historyData.length === 0) return;
+    navigator.clipboard.writeText(historyData.map(i => i.url).join("\n")).then(() => alert("Kopi!"));
+}
+
+function toggleAuto() {
+    auto = !auto;
+    const btn = document.getElementById("autoBtn");
+    btn.textContent = auto ? "⏹ STOP" : "▶ START HUNTER";
+    btn.className = "btn-main " + (auto ? "btn-stop" : "btn-start");
+    if (auto) processBatch();
+}
+
+window.onload = updateHistoryUI;
+</script>
+</body>
+</html>
+
+
+ganti
+
+<!DOCTYPE html>
+<html lang="id">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Hive Admin Panel</title>
+<style>
+body{font-family:Arial;padding:20px;background:#f4f4f5;}
+.container{max-width:700px;margin:auto;background:white;padding:20px;border-radius:10px;box-shadow:0 5px 15px rgba(0,0,0,0.1);}
+h2,h3{margin-bottom:10px;}
+input,textarea,select,button{width:100%;padding:10px;margin-top:8px;border-radius:5px;border:1px solid #ccc;box-sizing:border-box;}
+button{background:#4CAF50;color:white;border:none;cursor:pointer;margin-top:10px;}
+button.delete{background:#f44336;}
+button.toggle{background:#2196F3;}
+button.paste{background:#ff9800;color:white;}
+.status{margin-top:10px;font-size:14px;color:#333;}
+.tabs{display:flex;border-bottom:1px solid #ccc;margin-bottom:10px;}
+.tab{flex:1;padding:10px;text-align:center;cursor:pointer;background:#e4e4e4;border-radius:5px 5px 0 0;margin-right:2px;}
+.tab.active{background:#4CAF50;color:white;}
+.tab-content{display:none;}
+.tab-content.active{display:block;}
+.toast{position:fixed;bottom:20px;left:50%;transform:translateX(-50%);background:#111827;color:white;padding:10px 16px;border-radius:6px;opacity:0;transition:0.3s;}
+.toast.show{opacity:1;}
+input, textarea, select {
+  font-size: 16px;
+}
+
+</style>
+</head>
+<body>
+<div class="container">
+<h2>Hive Admin Panel</h2>
+
+<div class="tabs">
+  <div class="tab active" onclick="showTab('voter')">Voter</div>
+  <div class="tab" onclick="showTab('disable')">Disable</div>
+  <div class="tab" onclick="showTab('link')">Link</div>
+</div>
+
+<!-- TAB VOTER -->
+<div id="voter" class="tab-content active">
+  <h3>Tambah Voter</h3>
+  <input type="text" id="newUsername" placeholder="Username (lowercase)">
+  <input type="text" id="newPostingKey" placeholder="Posting Key">
+  <label>
+    <input type="checkbox" id="newActive" checked> Aktif
+  </label>
+  <button onclick="addVoter()">Tambah</button>
+
+  <h3>Database Voter</h3>
+  <select id="voterDropdown"></select>
+  <button class="delete" onclick="deleteVoter()">Hapus</button>
+  <button class="toggle" onclick="toggleVoter()">Toggle Aktif/Nonaktif</button>
+  <button style="background:#ff9800;color:white;" onclick="moveVoterToDisable()">Pindah ke Disable</button>
+
+  <h3>Update Semua Voter (JSON)</h3>
+  <textarea id="jsonVoters" rows="6" placeholder='[{"username":"user1","postingKey":"5K...","aktif":true}]'></textarea>
+  <button class="paste" onclick="pasteToTextarea('jsonVoters')">Paste JSON</button>
+  <button onclick="updateVoters()">Update</button>
+</div>
+
+<!-- TAB DISABLE -->
+<div id="disable" class="tab-content">
+  <h3>Database Disable (Legacy)</h3>
+  <select id="disableDropdown"></select>
+  <button class="delete" onclick="deleteDisable()">Hapus</button>
+  <button onclick="moveDisableToVoter()">Pindah ke Voter</button>
+
+  <h3>Update Semua Disable (JSON)</h3>
+  <textarea id="jsonDisable" rows="6" placeholder='[{"username":"user1","postingKey":"5K..."}]'></textarea>
+  <button class="paste" onclick="pasteToTextarea('jsonDisable')">Paste JSON</button>
+  <button onclick="updateDisable()">Update</button>
+</div>
+
+<!-- TAB LINK -->
+<div id="link" class="tab-content">
+  <h3>Link Sekarang</h3>
+  <div id="currentLink"></div>
+  <h3>Update Link</h3>
+  <input type="text" id="newLink" placeholder="Masukkan link baru">
+  <button onclick="updateLink()">Update Link</button>
+</div>
+
+<div class="status" id="status">Memuat data...</div>
+</div>
+
+<div class="toast" id="toast"></div>
+
+<script>
+const apiUrl = "https://script.google.com/macros/s/AKfycbzzPdLkT1PPda_r_RdTLYIWbiIIQ7hWvUc8-_s3FeF6xXV4rEX9mCQ_40xUU9YH6jCE/exec";
+let voters = [], disables = [], link = "";
+
+// Toast helper
+function toast(msg){
+  const t = document.getElementById("toast");
+  t.innerText = msg;
+  t.classList.add("show");
+  setTimeout(()=>t.classList.remove("show"),2500);
+}
+
+// Tabs
+function showTab(tabId){
+  document.querySelectorAll('.tab-content').forEach(c=>c.classList.remove('active'));
+  document.getElementById(tabId).classList.add('active');
+  document.querySelectorAll('.tab').forEach(t=>t.classList.remove('active'));
+  event.target.classList.add('active');
+}
+
+// Paste JSON ke textarea
+async function pasteToTextarea(id){
+  try{
+    const text = await navigator.clipboard.readText();
+    document.getElementById(id).value = text.trim();
+    toast("JSON berhasil dipaste");
+  }catch{
+    toast("Clipboard ditolak");
+  }
+}
+
+// Load Data
+function loadData(){
+  fetch(apiUrl+"?api=list")
+  .then(res=>res.json())
+  .then(data=>{
+    voters = data.voters || [];
+    disables = data.disable || [];
+    link = data.link || "";
+    refreshVoter();
+    refreshDisable();
+    document.getElementById("currentLink").innerText = link;
+    document.getElementById("jsonVoters").value = JSON.stringify(voters,null,2);
+    document.getElementById("jsonDisable").value = JSON.stringify(disables,null,2);
+    document.getElementById("status").innerText = "Data siap.";
+  });
+}
+
+// Voter Functions
+function refreshVoter(){
+  const sel = document.getElementById("voterDropdown");
+  sel.innerHTML = "";
+  voters.forEach(v=>{
+    const opt = document.createElement("option");
+    opt.value = v.username;
+    opt.innerText = v.username + " (" + (v.aktif ? "Aktif" : "Nonaktif") + ")";
+    sel.appendChild(opt);
+  });
+}
+
+function addVoter(){
+  const username = document.getElementById("newUsername").value.trim().toLowerCase();
+  const postingKey = document.getElementById("newPostingKey").value.trim();
+  const aktif = document.getElementById("newActive").checked;
+  if(!username || !postingKey){ toast("Isi username & posting key"); return; }
+  fetch(apiUrl,{method:'POST',body: JSON.stringify({api:'addVoter', username, postingKey, aktif})})
+  .then(res=>res.json()).then(res=>{
+    toast(res.message);
+    loadData();
+    document.getElementById("newUsername").value="";
+    document.getElementById("newPostingKey").value="";
+  });
+}
+
+function deleteVoter(){
+  const username = document.getElementById("voterDropdown").value;
+  if(!username) return toast("Pilih voter");
+  fetch(apiUrl,{method:'POST',body: JSON.stringify({api:'deleteVoter', username})})
+  .then(res=>res.json()).then(res=>{
+    toast(res.message);
+    loadData();
+  });
+}
+
+function toggleVoter(){
+  const username = document.getElementById("voterDropdown").value;
+  if(!username) return toast("Pilih voter");
+  fetch(apiUrl,{method:'POST',body: JSON.stringify({api:'toggleVoter', username})})
+  .then(res=>res.json()).then(res=>{
+    toast(res.message);
+    loadData();
+  });
+}
+
+function updateVoters(){
+  let arr;
+  try{ arr = JSON.parse(document.getElementById("jsonVoters").value); if(!Array.isArray(arr)) throw "Bukan array"; }
+  catch(e){ toast("Format JSON salah!"); return; }
+  fetch(apiUrl,{method:'POST',body: JSON.stringify({api:'updateVoters', voters: arr})})
+  .then(res=>res.json()).then(res=>{
+    toast(res.message);
+    loadData();
+  });
+}
+
+// Disable Functions
+function refreshDisable(){
+  const sel = document.getElementById("disableDropdown");
+  sel.innerHTML = "";
+  disables.forEach(u=>{
+    const opt = document.createElement("option");
+    opt.value = u.username;
+    opt.innerText = u.username;
+    sel.appendChild(opt);
+  });
+}
+
+function deleteDisable(){
+  const username = document.getElementById("disableDropdown").value;
+  if(!username) return toast("Pilih username"); 
+  fetch(apiUrl,{method:'POST',body: JSON.stringify({api:'deleteDisable', username})})
+  .then(res=>res.json()).then(res=>{
+    toast(res.message);
+    loadData();
+  });
+}
+
+function updateDisable(){
+  let arr;
+  try{ arr = JSON.parse(document.getElementById("jsonDisable").value); if(!Array.isArray(arr)) throw "Bukan array"; }
+  catch(e){ toast("Format JSON salah!"); return; }
+  fetch(apiUrl,{method:'POST',body: JSON.stringify({api:'updateDisable', disable: arr})})
+  .then(res=>res.json()).then(res=>{
+    toast(res.message);
+    loadData();
+  });
+}
+
+// Move Functions
+function moveDisableToVoter(){
+  const username = document.getElementById("disableDropdown").value;
+  if(!username) return toast("Pilih username");
+
+  let disableObj = disables.find(d => d.username === username);
+  if(!disableObj) return toast("Data disable tidak ditemukan");
+
+  fetch(apiUrl, {method: 'POST', body: JSON.stringify({api: 'addVoter', username: disableObj.username, postingKey: disableObj.postingKey})})
+  .then(res => res.json())
+  .then(res => {
+    toast(res.message);
+    if(res.status === "success"){
+      fetch(apiUrl, {method: 'POST', body: JSON.stringify({api: 'deleteDisable', username: disableObj.username})})
+      .then(()=>loadData());
+    }
+  });
+}
+
+function moveVoterToDisable(){
+  const username = document.getElementById("voterDropdown").value;
+  if(!username) return toast("Pilih voter");
+
+  let voterObj = voters.find(v => v.username === username);
+  if(!voterObj) return toast("Voter tidak ditemukan");
+
+  fetch(apiUrl, {method: 'POST', body: JSON.stringify({api: 'addDisable', username: voterObj.username, postingKey: voterObj.postingKey})})
+  .then(res => res.json())
+  .then(res => {
+    toast(res.message);
+    if(res.status === "success"){
+      fetch(apiUrl, {method: 'POST', body: JSON.stringify({api: 'deleteVoter', username: voterObj.username})})
+      .then(()=>loadData());
+    }
+  });
+}
+
+// LINK
+function updateLink(){
+  const newLink = document.getElementById("newLink").value.trim();
+  if(!newLink) return toast("Isi link baru");
+  fetch(apiUrl,{method:'POST',body: JSON.stringify({api:'setLink', link: newLink})})
+  .then(res=>res.json()).then(res=>{
+    toast("Link diperbarui");
+    loadData();
+    document.getElementById("newLink").value="";
+  });
+}
+
+// Init
+window.onload = loadData;
+</script>
+</body>
+</html>
+
+ganti
+
+<!DOCTYPE html>
+<html lang="id">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Hive Admin Pro Panel</title>
+    <style>
+        :root {
+            --primary: #2563eb;
+            --primary-hover: #1d4ed8;
+            --bg: #f8fafc;
+            --card: #ffffff;
+            --text-main: #1e293b;
+            --text-sub: #64748b;
+            --danger: #ef4444;
+            --warning: #f59e0b;
+            --success: #10b981;
+            --border: #e2e8f0;
+        }
+
+        * { box-sizing: border-box; font-family: 'Inter', system-ui, sans-serif; }
+        body { background: var(--bg); color: var(--text-main); margin: 0; padding: 10px; line-height: 1.5; }
+
+        .container { max-width: 800px; margin: 20px auto; background: var(--card); border-radius: 16px; box-shadow: 0 10px 25px rgba(0,0,0,0.05); overflow: hidden; border: 1px solid var(--border); }
+        
+        /* Header */
+        header { background: var(--primary); padding: 25px; color: white; text-align: center; }
+        header h2 { margin: 0; font-size: 1.5rem; letter-spacing: -0.5px; }
+        header p { margin: 5px 0 0; opacity: 0.8; font-size: 0.9rem; }
+
+        /* Tabs Navigation */
+        .tabs { display: flex; background: #f1f5f9; padding: 5px; gap: 5px; }
+        .tab { 
+            flex: 1; padding: 12px; text-align: center; cursor: pointer; 
+            border-radius: 10px; font-weight: 600; color: var(--text-sub);
+            transition: all 0.2s; font-size: 0.95rem;
+        }
+        .tab:hover { background: #e2e8f0; color: var(--text-main); }
+        .tab.active { background: var(--card); color: var(--primary); shadow: 0 2px 4px rgba(0,0,0,0.05); }
+
+        /* Content Area */
+        .tab-content { display: none; padding: 25px; animation: fadeIn 0.3s ease; }
+        .tab-content.active { display: block; }
+        @keyframes fadeIn { from { opacity: 0; transform: translateY(5px); } to { opacity: 1; transform: translateY(0); } }
+
+        h3 { font-size: 1.1rem; margin: 20px 0 12px; display: flex; align-items: center; gap: 8px; color: var(--text-main); }
+        h3:first-child { margin-top: 0; }
+
+        /* Forms & Inputs */
+        .form-group { margin-bottom: 15px; }
+        input[type="text"], textarea, select {
+            width: 100%; padding: 12px 16px; border-radius: 10px; border: 1px solid var(--border);
+            background: #fcfcfd; font-size: 1rem; transition: border-color 0.2s; outline: none;
+        }
+        input:focus, textarea:focus, select:focus { border-color: var(--primary); box-shadow: 0 0 0 3px rgba(37, 99, 235, 0.1); }
+        
+        .checkbox-group { display: flex; align-items: center; gap: 8px; cursor: pointer; user-select: none; font-weight: 500; }
+        input[type="checkbox"] { width: 18px; height: 18px; cursor: pointer; }
+
+        /* Buttons Grid */
+        .btn-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-top: 10px; }
+        button {
+            display: flex; align-items: center; justify-content: center; gap: 8px;
+            padding: 12px; border: none; border-radius: 10px; font-weight: 600;
+            cursor: pointer; transition: all 0.2s; font-size: 0.9rem;
+        }
+        .btn-main { background: var(--primary); color: white; width: 100%; }
+        .btn-main:hover { background: var(--primary-hover); transform: translateY(-1px); }
+        .btn-danger { background: #fef2f2; color: var(--danger); border: 1px solid #fee2e2; }
+        .btn-danger:hover { background: var(--danger); color: white; }
+        .btn-toggle { background: #eff6ff; color: var(--primary); border: 1px solid #dbeafe; }
+        .btn-move { background: #fffbeb; color: var(--warning); border: 1px solid #fef3c7; }
+        .btn-paste { background: #f0fdf4; color: var(--success); border: 1px solid #dcfce7; }
+        button:active { transform: scale(0.98); }
+
+        /* Database Area */
+        .db-box { background: #f8fafc; border: 1px solid var(--border); border-radius: 12px; padding: 15px; }
+        
+        /* Status & Toast */
+        .status-bar { padding: 12px 25px; background: #f1f5f9; border-top: 1px solid var(--border); font-size: 0.85rem; color: var(--text-sub); display: flex; justify-content: space-between; }
+        
+        .toast {
+            position: fixed; bottom: 30px; left: 50%; transform: translateX(-50%) translateY(100px);
+            background: #1e293b; color: white; padding: 12px 24px; border-radius: 12px;
+            box-shadow: 0 10px 15px -3px rgba(0,0,0,0.2); transition: 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+            z-index: 9999; font-weight: 500; opacity: 0;
+        }
+        .toast.show { transform: translateX(-50%) translateY(0); opacity: 1; }
+
+        /* Tab Link Styling */
+        .link-display { background: #eff6ff; padding: 15px; border-radius: 10px; border: 1px dashed var(--primary); color: var(--primary); font-family: monospace; word-break: break-all; margin-bottom: 15px; }
+
+        @media (max-width: 480px) {
+            .btn-grid { grid-template-columns: 1fr; }
+            header { padding: 20px 15px; }
+        }
+    </style>
+</head>
+<body>
+
+<div class="container">
+    <header>
+        <h2>Hive Admin Panel</h2>
+        <p id="timeInfo">System Automation Manager</p>
+    </header>
+
+    <nav class="tabs" id="tabNav">
+        <div class="tab active" data-tab="voter">Account Voter</div>
+        <div class="tab" data-tab="disable">Disabled List</div>
+        <div class="tab" data-tab="link">Global Config</div>
+    </nav>
+
+    <div id="voter" class="tab-content active">
+        <h3>➕ Tambah Voter Baru</h3>
+        <div class="form-group">
+            <input type="text" id="newUsername" placeholder="Username Hive (tanpa @)">
+        </div>
+        <div class="form-group">
+            <input type="text" id="newPostingKey" placeholder="Private Posting Key">
+        </div>
+        <label class="checkbox-group">
+            <input type="checkbox" id="newActive" checked> Berikan Akses Voting Aktif
+        </label>
+        <button class="btn-main" style="margin-top:15px" onclick="addVoter()">Tambah ke Database</button>
+
+        <hr style="border:0; border-top:1px solid #eee; margin:25px 0">
+
+        <h3>🗄️ Manajemen Database</h3>
+        <div class="db-box">
+            <select id="voterDropdown"></select>
+            <div class="btn-grid">
+                <button class="btn-toggle" onclick="toggleVoter()">🔄 Toggle Status</button>
+                <button class="btn-move" onclick="moveVoterToDisable()">⚠️ Pindah ke Disable</button>
+                <button class="btn-danger" style="grid-column: span 2" onclick="deleteVoter()">🗑️ Hapus Permanen</button>
+            </div>
+        </div>
+
+        <h3>📦 Bulk Update (JSON)</h3>
+        <textarea id="jsonVoters" rows="5" placeholder='[{"username":"user1", ...}]'></textarea>
+        <div class="btn-grid">
+            <button class="btn-paste" onclick="pasteToTextarea('jsonVoters')">📋 Paste Clipboard</button>
+            <button class="btn-main" onclick="updateVoters()">💾 Simpan Semua</button>
+        </div>
+    </div>
+
+    <div id="disable" class="tab-content">
+        <h3>🚫 Daftar Akun Nonaktif</h3>
+        <div class="db-box">
+            <select id="disableDropdown"></select>
+            <div class="btn-grid">
+                <button class="btn-main" onclick="moveDisableToVoter()">✅ Aktifkan Kembali</button>
+                <button class="btn-danger" onclick="deleteDisable()">🗑️ Hapus Permanen</button>
+            </div>
+        </div>
+
+        <h3>📦 Bulk Update Disable (JSON)</h3>
+        <textarea id="jsonDisable" rows="5" placeholder='[{"username":"user1", ...}]'></textarea>
+        <div class="btn-grid">
+            <button class="btn-paste" onclick="pasteToTextarea('jsonDisable')">📋 Paste Clipboard</button>
+            <button class="btn-main" onclick="updateDisable()">💾 Simpan Semua</button>
+        </div>
+    </div>
+
+    <div id="link" class="tab-content">
+        <h3>🔗 Endpoint Configuration</h3>
+        <div class="link-display" id="currentLink">Memuat link...</div>
+        
+        <h3>✏️ Update Link Baru</h3>
+        <input type="text" id="newLink" placeholder="https://script.google.com/macros/...">
+        <button class="btn-main" style="margin-top:15px" onclick="updateLink()">Update Konfigurasi Link</button>
+    </div>
+
+    <div class="status-bar">
+        <span id="status">Status: Standby</span>
+        <span id="version">v4.0.1 Stable</span>
+    </div>
+</div>
+
+<div class="toast" id="toast">Operasi Berhasil</div>
+
+<script>
+// API Configuration
+const apiUrl = "https://script.google.com/macros/s/AKfycbzzPdLkT1PPda_r_RdTLYIWbiIIQ7hWvUc8-_s3FeF6xXV4rEX9mCQ_40xUU9YH6jCE/exec";
+let voters = [], disables = [], link = "";
+
+// Toast System
+function toast(msg){
+    const t = document.getElementById("toast");
+    t.innerText = msg;
+    t.classList.add("show");
+    setTimeout(()=>t.classList.remove("show"), 3000);
+}
+
+// Tab System Improved
+document.getElementById('tabNav').addEventListener('click', (e) => {
+    const tab = e.target.closest('.tab');
+    if (!tab) return;
+    
+    document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
+    document.querySelectorAll('.tab-content').forEach(c => c.classList.remove('active'));
+    
+    tab.classList.add('active');
+    document.getElementById(tab.dataset.tab).classList.add('active');
+});
+
+// Paste Helper
+async function pasteToTextarea(id){
+    try{
+        const text = await navigator.clipboard.readText();
+        document.getElementById(id).value = text.trim();
+        toast("JSON berhasil dipaste ✅");
+    }catch{
+        toast("Gagal mengakses clipboard ❌");
+    }
+}
+
+// Global Load
+function loadData(){
+    document.getElementById("status").innerText = "Status: Sinkronisasi...";
+    fetch(apiUrl+"?api=list")
+    .then(res=>res.json())
+    .then(data=>{
+        voters = data.voters || [];
+        disables = data.disable || [];
+        link = data.link || "Link tidak ditemukan";
+        
+        refreshVoter();
+        refreshDisable();
+        
+        document.getElementById("currentLink").innerText = link;
+        document.getElementById("jsonVoters").value = JSON.stringify(voters, null, 2);
+        document.getElementById("jsonDisable").value = JSON.stringify(disables, null, 2);
+        document.getElementById("status").innerText = "Status: Terhubung";
+    }).catch(() => {
+        document.getElementById("status").innerText = "Status: Koneksi Error";
+        toast("Gagal mengambil data dari server 🌐");
+    });
+}
+
+// Render Voter Select
+function refreshVoter(){
+    const sel = document.getElementById("voterDropdown");
+    sel.innerHTML = voters.length ? "" : "<option disabled>Tidak ada data</option>";
+    voters.forEach(v=>{
+        const opt = document.createElement("option");
+        opt.value = v.username;
+        opt.innerText = `${v.aktif ? '🟢' : '⚪'} ${v.username}`;
+        sel.appendChild(opt);
+    });
+}
+
+// Render Disable Select
+function refreshDisable(){
+    const sel = document.getElementById("disableDropdown");
+    sel.innerHTML = disables.length ? "" : "<option disabled>Tidak ada data</option>";
+    disables.forEach(u=>{
+        const opt = document.createElement("option");
+        opt.value = u.username;
+        opt.innerText = `🚫 ${u.username}`;
+        sel.appendChild(opt);
+    });
+}
+
+// Generic Fetch Handler for POST
+async function apiPost(payload) {
+    document.getElementById("status").innerText = "Status: Mengirim...";
+    try {
+        const res = await fetch(apiUrl, { method:'POST', body: JSON.stringify(payload) });
+        const data = await res.json();
+        toast(data.message || "Berhasil diperbarui");
+        loadData();
+    } catch(e) {
+        toast("Terjadi kesalahan sistem ⛔");
+        document.getElementById("status").innerText = "Status: Gagal";
+    }
+}
+
+// Voter Actions
+function addVoter(){
+    const username = document.getElementById("newUsername").value.trim().toLowerCase();
+    const postingKey = document.getElementById("newPostingKey").value.trim();
+    const aktif = document.getElementById("newActive").checked;
+    
+    if(!username || !postingKey) return toast("Lengkapi data user!");
+    
+    apiPost({api:'addVoter', username, postingKey, aktif});
+    document.getElementById("newUsername").value="";
+    document.getElementById("newPostingKey").value="";
+}
+
+function deleteVoter(){
+    const username = document.getElementById("voterDropdown").value;
+    if(!username || username === "Tidak ada data") return;
+    if(confirm(`Hapus @${username}?`)) apiPost({api:'deleteVoter', username});
+}
+
+function toggleVoter(){
+    const username = document.getElementById("voterDropdown").value;
+    if(!username || username === "Tidak ada data") return;
+    apiPost({api:'toggleVoter', username});
+}
+
+function updateVoters(){
+    try {
+        const arr = JSON.parse(document.getElementById("jsonVoters").value);
+        apiPost({api:'updateVoters', voters: arr});
+    } catch(e) { toast("Format JSON tidak valid!"); }
+}
+
+// Disable Actions
+function deleteDisable(){
+    const username = document.getElementById("disableDropdown").value;
+    if(!username || username === "Tidak ada data") return;
+    if(confirm(`Hapus permanen @${username}?`)) apiPost({api:'deleteDisable', username});
+}
+
+function updateDisable(){
+    try {
+        const arr = JSON.parse(document.getElementById("jsonDisable").value);
+        apiPost({api:'updateDisable', disable: arr});
+    } catch(e) { toast("Format JSON tidak valid!"); }
+}
+
+// Logic Pindah
+function moveDisableToVoter(){
+    const username = document.getElementById("disableDropdown").value;
+    const obj = disables.find(d => d.username === username);
+    if(obj) apiPost({api: 'addVoter', username: obj.username, postingKey: obj.postingKey, aktif: true});
+}
+
+function moveVoterToDisable(){
+    const username = document.getElementById("voterDropdown").value;
+    const obj = voters.find(v => v.username === username);
+    if(obj) apiPost({api: 'addDisable', username: obj.username, postingKey: obj.postingKey});
+}
+
+// Config Actions
+function updateLink(){
+    const newLink = document.getElementById("newLink").value.trim();
+    if(!newLink) return toast("Link tidak boleh kosong!");
+    apiPost({api:'setLink', link: newLink});
+    document.getElementById("newLink").value = "";
+}
+
+// Start
+window.onload = loadData;
+</script>
+
+</body>
+</html>
+
+
+ganti
+
+<!DOCTYPE html>
+<html lang="id">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Hive Voter Batch Classifier</title>
+<style>
+    * { box-sizing: border-box; }
+    body { font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; background: #0f172a; margin: 0; padding: 15px; color: #f8fafc; }
+    .container { max-width: 600px; margin: auto; background: #1e293b; padding: 25px; border-radius: 16px; box-shadow: 0 10px 25px rgba(0,0,0,0.3); border: 1px solid #334155; }
+    h1 { text-align: center; color: #38bdf8; font-size: 1.5rem; margin-bottom: 20px; }
+    
+    .log { 
+        font-family: 'Cascadia Code', 'Courier New', monospace; 
+        background: #000000; color: #cbd5e1; 
+        padding: 15px; border-radius: 10px; 
+        height: 400px; overflow-y: auto; font-size: 12px;
+        border: 1px solid #334155;
+        line-height: 1.6;
+    }
+    .ok { color: #4ade80; font-weight: bold; }
+    .warn { color: #fbbf24; }
+    .err { color: #f87171; }
+    .batch-info { color: #94a3b8; border-bottom: 1px dashed #334155; margin: 5px 0; padding-bottom: 2px; }
+    
+    button { 
+        margin-top: 20px; width: 100%; padding: 15px; border: none; 
+        border-radius: 12px; background: #0284c7; color: white; 
+        font-size: 16px; font-weight: 700; cursor: pointer;
+        transition: all 0.2s; box-shadow: 0 4px 12px rgba(2, 132, 199, 0.3);
+    }
+    button:hover { background: #0369a1; transform: translateY(-1px); }
+    button:active { transform: translateY(1px); }
+    button:disabled { background: #475569; cursor: not-allowed; box-shadow: none; }
+</style>
+</head>
+<body>
+
+<div class="container">
+    <h1>Voter Classifier <span style="font-size: 0.8rem; color: #94a3b8;">v2 (Batch 5)</span></h1>
+    <div class="log" id="log">Siap melakukan pemindaian...</div>
+    <button id="btnStart" onclick="start()">START BATCH SCAN & UPDATE</button>
+</div>
+
+<script>
+const API_VOTER = "https://script.google.com/macros/s/AKfycbzzPdLkT1PPda_r_RdTLYIWbiIIQ7hWvUc8-_s3FeF6xXV4rEX9mCQ_40xUU9YH6jCE/exec";
+const BATCH_SIZE = 5; // Sekali jalan 5 akun
+
+let voters = [];
+
+function log(msg, cls=""){
+    let el = document.getElementById("log");
+    let div = document.createElement("div");
+    div.className = cls;
+    div.innerHTML = "> " + msg;
+    el.appendChild(div);
+    el.scrollTop = el.scrollHeight;
+}
+
+async function loadVoters(){
+    log("Mengambil data database...", "warn");
+    try {
+        let res = await fetch(API_VOTER + "?api=list");
+        let data = await res.json();
+        voters = data.voters || [];
+        log("Berhasil memuat " + voters.length + " akun.", "ok");
+    } catch(e) {
+        log("Gagal memuat database!", "err");
+    }
+}
+
+async function cekVP(username){
+    try {
+        let res = await fetch("https://api.hive.blog", {
+            method: "POST",
+            body: JSON.stringify({
+                jsonrpc: "2.0", method: "condenser_api.get_accounts",
+                params: [[username]], id: 1
+            })
+        });
+        let j = await res.json();
+        if(!j.result || j.result.length === 0) return null;
+        
+        let acc = j.result[0];
+        let vp = acc.voting_power;
+        let last = new Date(acc.last_vote_time + "Z");
+        let now = new Date();
+        let seconds = (now - last) / 1000;
+        let regen = seconds * 10000 / 432000;
+        let current = Math.min(10000, vp + regen);
+        return current / 100;
+    } catch(e) {
+        return null;
+    }
+}
+
+// Fungsi pembungkus untuk memproses tiap akun dalam batch
+async function processAccount(acc) {
+    let vp = await cekVP(acc.username);
+    if (vp === null) {
+        log(acc.username + ": Gagal cek data", "err");
+        return;
+    }
+    
+    let isAktif = vp >= 96;
+    let statusLabel = isAktif ? "VOTER" : "DISABLED";
+    let statusClass = isAktif ? "ok" : "warn";
+    
+    log(`${acc.username} [${vp.toFixed(2)}%] → ${statusLabel}`, statusClass);
+    
+    // Update data lokal
+    acc.aktif = isAktif;
+}
+
+async function start(){
+    const btn = document.getElementById("btnStart");
+    btn.disabled = true;
+    document.getElementById("log").innerHTML = ""; // Clear log
+    
+    await loadVoters();
+    if(voters.length === 0) {
+        btn.disabled = false;
+        return;
+    }
+
+    log(`Memulai pengecekan (Batch: ${BATCH_SIZE} akun)...`, "warn");
+
+    // Loop Batching
+    for (let i = 0; i < voters.length; i += BATCH_SIZE) {
+        let currentBatch = voters.slice(i, i + BATCH_SIZE);
+        log(`Memproses batch ${Math.floor(i/BATCH_SIZE) + 1}...`, "batch-info");
+        
+        // Jalankan batch secara paralel (5 sekaligus)
+        await Promise.all(currentBatch.map(acc => processAccount(acc)));
+        
+        // Jeda tipis agar API Hive tidak kewalahan (opsional)
+        await new Promise(r => setTimeout(r, 500));
+    }
+
+    // Tahap Akhir: Kirim hasil ke GAS
+    log("Mengirim pembaruan ke database...", "warn");
+    try {
+        let res = await fetch(API_VOTER, {
+            method: "POST",
+            body: JSON.stringify({
+                api: "updateVoters",
+                voters: voters
+            })
+        });
+        let result = await res.json();
+        log("Selesai! Database: " + result.message, "ok");
+    } catch(e) {
+        log("Gagal memperbarui database utama!", "err");
+    }
+    
+    btn.disabled = false;
+    log("=== Scan Selesai ===", "ok");
+}
+</script>
+
+</body>
+</html>
+
+ganti
+
+Beda lagi 3 run/v6
+https://script.google.com/macros/s/AKfycbwwUuuh7SL0_LLZex4wbeRVN5k_pv_IAeZ0uthF9xmvl8AIkfJkDKEoRH_1QbVtF67C/exec
+
+Ini 1% https://script.google.com/macros/s/AKfycbx_DiehZxIsygYNfv-KPVsq1MzGLGtBW2jSsr0-NBV-ND7Ss1w_ISxS9TmM17_yEXNL0g/exec
+
+https://script.google.com/macros/s/AKfycbwb56pbrt-s0hQ0O_oBdIetOkTpMC1bK0fPZhk2QJXVBbKBfpm_psnoF5FWXQIQf2o27A/exec
+
+https://script.google.com/macros/s/AKfycbznYi5jG-P4ZZOjC_RhzgA-8blBCiBYqNPQt8leXSs37BoFUvPgAiN9AcZb1LAYNtWcgQ/exec
+
+https://script.google.com/macros/s/AKfycbwctwHEz_P41myfViYkJWBPp7WCnbnCT-iCkIPn4w2yAASHnaImckBRhtyxrmN9r9jVcg/exec
+
+https://script.google.com/macros/s/AKfycbzhgruisdm-l_fwvVZEm6VnEt5cnAAoJBV5Khk8CFoYj0_B6xCCyjqJlUsPnaR8eNzFAw/exec
+
+
+
+ganti
+
+// =======================================
+// GAS Akun V.2 Extended – Hive Database Extended
+// Menyimpan voters, disable, dan link
+// Fitur baru: bulk update / hapus semua
+// =======================================
+
+// ===== DATABASE =====
+function getHiveVoters() {
+  let stored = PropertiesService.getScriptProperties().getProperty("HIVE_VOTERS");
+  return stored ? JSON.parse(stored) : [];
+}
+
+function saveHiveVoters(voters) {
+  PropertiesService.getScriptProperties().setProperty("HIVE_VOTERS", JSON.stringify(voters));
+}
+
+function getHiveDisable() {
+  let stored = PropertiesService.getScriptProperties().getProperty("HIVE_DISABLE");
+  return stored ? JSON.parse(stored) : [];
+}
+
+function saveHiveDisable(disable) {
+  PropertiesService.getScriptProperties().setProperty("HIVE_DISABLE", JSON.stringify(disable));
+}
+
+function getHiveLink() {
+  return PropertiesService.getScriptProperties().getProperty("HIVE_LINK") || "";
+}
+
+function saveHiveLink(link) {
+  PropertiesService.getScriptProperties().setProperty("HIVE_LINK", link);
+}
+
+// ===== CORE FUNCTION =====
+
+// ambil semua data
+function apiList() {
+  return {
+    status: "success",
+    voters: getHiveVoters(),
+    disable: getHiveDisable(),
+    link: getHiveLink()
+  };
+}
+
+// tambah voter
+function apiAddVoter(username, postingKey) {
+  if (!username || !postingKey) return { status: "error", message: "Username atau Posting Key kosong" };
+  let voters = getHiveVoters();
+  if (voters.some(v => v.username === username)) return { status: "error", message: "Username sudah ada" };
+  voters.push({ username, postingKey });
+  saveHiveVoters(voters);
+  return { status: "success", message: "Voter berhasil ditambahkan" };
+}
+
+// edit voter
+function apiEditVoter(oldUsername, newUsername, newPostingKey) {
+  let voters = getHiveVoters();
+  let i = voters.findIndex(v => v.username === oldUsername);
+  if (i === -1) return { status: "error", message: "Username tidak ditemukan" };
+  voters[i] = { username: newUsername, postingKey: newPostingKey };
+  saveHiveVoters(voters);
+  return { status: "success", message: "Voter berhasil diperbarui" };
+}
+
+// hapus voter
+function apiDeleteVoter(username) {
+  let voters = getHiveVoters();
+  let newList = voters.filter(v => v.username !== username);
+  if (newList.length === voters.length) return { status: "error", message: "Username tidak ditemukan" };
+  saveHiveVoters(newList);
+  return { status: "success", message: "Voter dihapus" };
+}
+
+// bulk update voters
+function apiUpdateVoters(newVoters) {
+  if (!Array.isArray(newVoters)) return { status: "error", message: "Data harus array" };
+  saveHiveVoters(newVoters);
+  return { status: "success", message: "Voters diperbarui", voters: newVoters };
+}
+
+// hapus semua voters
+function apiDeleteAllVoters() {
+  saveHiveVoters([]);
+  return { status: "success", message: "Semua voter dihapus" };
+}
+
+// tambah disable
+function apiAddDisable(username) {
+  if (!username) return { status: "error", message: "Username kosong" };
+  let disable = getHiveDisable();
+  if (disable.includes(username)) return { status: "error", message: "Username sudah ada di disable" };
+  disable.push(username);
+  saveHiveDisable(disable);
+  return { status: "success", message: "Username ditambahkan ke disable" };
+}
+
+// hapus disable
+function apiDeleteDisable(username) {
+  let disable = getHiveDisable();
+  let newList = disable.filter(u => u !== username);
+  if (newList.length === disable.length) return { status: "error", message: "Username tidak ditemukan di disable" };
+  saveHiveDisable(newList);
+  return { status: "success", message: "Username dihapus dari disable" };
+}
+
+// bulk update disable
+function apiUpdateDisable(newDisable) {
+  if (!Array.isArray(newDisable)) return { status: "error", message: "Data harus array" };
+  saveHiveDisable(newDisable);
+  return { status: "success", message: "Disable diperbarui", disable: newDisable };
+}
+
+// hapus semua disable
+function apiDeleteAllDisable() {
+  saveHiveDisable([]);
+  return { status: "success", message: "Semua disable dihapus" };
+}
+
+// update link
+function apiSetLink(link) {
+  saveHiveLink(link || "");
+  return { status: "success", link: getHiveLink() };
+}
+
+// ===== ROUTER API =====
+function doGet(e) {
+  let api = e.parameter.api;
+  if (api === "list") return json(apiList());
+  return json({ status: "ok", message: "GAS V2 Aktif" });
+}
+
+function doPost(e) {
+  let data = JSON.parse(e.postData.contents || "{}");
+  let api = data.api;
+
+  switch (api) {
+    case "addVoter": return json(apiAddVoter(data.username, data.postingKey));
+    case "editVoter": return json(apiEditVoter(data.oldUsername, data.newUsername, data.newPostingKey));
+    case "deleteVoter": return json(apiDeleteVoter(data.username));
+    case "updateVoters": return json(apiUpdateVoters(data.voters));
+    case "deleteAllVoters": return json(apiDeleteAllVoters());
+    case "addDisable": return json(apiAddDisable(data.username));
+    case "deleteDisable": return json(apiDeleteDisable(data.username));
+    case "updateDisable": return json(apiUpdateDisable(data.disable));
+    case "deleteAllDisable": return json(apiDeleteAllDisable());
+    case "setLink": return json(apiSetLink(data.link));
+    default: return json({ status: "error", message: "API tidak dikenal" });
+  }
+}
+
+// ===== JSON OUTPUT =====
+function json(data) {
+  return ContentService
+    .createTextOutput(JSON.stringify(data))
+    .setMimeType(ContentService.MimeType.JSON);
+}
+
+
+ganti
+
+/*************************************************
+ GAS V.5
+ Hive Multi Auto Vote Engine
+ Mengambil voters & candidate dari 1 API (GAS V4)
+ Auto run saat dibuka
+*************************************************/
+
+// API GAS utama
+const API_URL = "https://script.google.com/macros/s/AKfycbzzPdLkT1PPda_r_RdTLYIWbiIIQ7hWvUc8-_s3FeF6xXV4rEX9mCQ_40xUU9YH6jCE/exec";
+
+// ===== Ambil data voters dan link dari GAS =====
+function getVoteData() {
+  const res = UrlFetchApp.fetch(API_URL + "?api=list");
+  const json = JSON.parse(res.getContentText());
+  // Filter voters aktif saja
+  const voters = (json.voters || []).filter(v => v.aktif === true);
+  const candidate = json.link || "";
+  return { voters, candidate };
+}
+
+// ===== HTML Web App =====
+function doGet() {
+  const data = getVoteData();
+  const voters = data.voters;
+  const candidate = data.candidate;
+
+  return HtmlService.createHtmlOutput(`
+
+<!DOCTYPE html>
+<html lang="id">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Hive Multi Auto Vote</title>
+
+<script src="https://cdn.jsdelivr.net/npm/@hiveio/hive-js/dist/hive.min.js"></script>
+<script>
+hive.api.setOptions({ url: 'https://api.hive.blog' });
+hive.config.set('address_prefix','STM');
+hive.config.set('chain_id','beeab0de00000000000000000000000000000000000000000000000000000000');
+</script>
+
+<style>
+body{font-family:Arial;background:#f3f4f6;padding:20px;}
+.container{max-width:500px;margin:auto;background:white;padding:20px;border-radius:10px;box-shadow:0 10px 25px rgba(0,0,0,0.1);}
+button{width:100%;padding:14px;background:#4CAF50;color:white;border:none;border-radius:6px;font-size:16px;cursor:pointer;}
+.status{margin-top:15px;font-size:14px;}
+.log{margin-top:10px;font-size:12px;background:#f7f7f7;padding:10px;border-radius:6px;max-height:200px;overflow:auto;}
+</style>
+
+</head>
+<body>
+<div class="container">
+<h2>Hive Multi Auto Vote</h2>
+
+<div class="status" id="status">Menunggu proses...</div>
+<div class="log" id="log"></div>
+
+<button onclick="startVote()">START AUTO VOTE</button>
+</div>
+
+<script>
+const voters = ${JSON.stringify(voters)};
+const candidate = "${candidate}";
+
+function log(msg){
+  const box=document.getElementById("log");
+  box.innerHTML+=msg+"<br>";
+  box.scrollTop=box.scrollHeight;
+}
+
+function startVote(){
+  if(!candidate){
+    log("❌ Candidate kosong");
+    return;
+  }
+  if(!voters.length){
+    log("❌ Tidak ada voter aktif");
+    return;
+  }
+
+  const parts = candidate.split("/");
+  const author = parts[4].replace("@","");
+  const permlink = parts[5];
+
+  log("Candidate: "+candidate);
+  log("Author: "+author);
+  log("Permlink: "+permlink);
+
+  voteLoop(author, permlink, 0);
+}
+
+function voteLoop(author, permlink, i){
+  if(i >= voters.length){
+    log("✅ Selesai semua vote");
+    document.getElementById("status").innerText = "Vote selesai";
+    return;
+  }
+
+  const voter = voters[i];
+  log("Voting: "+voter.username);
+
+  hive.broadcast.vote(
+    voter.postingKey,
+    voter.username,
+    author,
+    permlink,
+    10000,
+    function(err,res){
+      if(err){
+        log("❌ "+voter.username+" gagal");
+      } else {
+        log("✅ "+voter.username+" sukses vote");
+      }
+      setTimeout(()=>voteLoop(author, permlink, i+1),2000);
+    }
+  );
+}
+
+// Auto start vote jika sudah ada voters dan candidate
+window.onload = function(){
+  if(voters.length && candidate){
+    log("Auto ready: "+voters.length+" voter ditemukan");
+  } else {
+    log("❌ Voters atau candidate tidak tersedia");
+  }
+};
+</script>
+</body>
+</html>
+
+`);
+}
